@@ -1,0 +1,589 @@
+## horseshoe prior simulations
+
+library(tidyverse);library(nimble);library(parallel);library(coda);library(rstan)
+rm(list = ls())
+
+logit <- function(x){
+  out <- log(x/(1-x))
+  return(out)
+}
+
+invlogit <- function(x){
+  out <- exp(x)/(1 + exp(x))
+  return(out)
+}
+
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+nimble_summary <- function(fit, warmup = nrow(fit[[1]])/2, thin = 1){
+  # convert to coda for normal summary
+  fit_warmup <- lapply(fit, function(x) x[(warmup+1):nrow(x),])
+  coda_samples <- as.mcmc.list(lapply(fit_warmup, function(x) as.mcmc(
+    x, start = warmup+1, end = nrow(fit), thin = thin
+  )))
+
+  sum <- summary(coda_samples)
+  params <- dimnames(sum$statistics)[[1]]
+  tmp_sum <- cbind(sum$statistics, sum$quantiles)
+
+  # get r hat / n_eff
+  mat <- matrix(NA, nrow = nrow(tmp_sum), ncol = 3)
+  colnames(mat) <- c("Rhat", "ess_bulk", "ess_tail")
+  for(i in 1:nrow(tmp_sum)){
+    tmp <- sapply(fit, function(x) x[,i])
+    mat[i,] <- c(Rhat(tmp), ess_bulk(tmp), ess_tail(tmp))
+  }
+
+  # get mode
+  all_samps <- do.call("rbind", coda_samples)
+  mod <- apply(all_samps, 2, getmode)
+
+  # out
+  out <- cbind(tmp_sum, mode = mod, mat)
+  return(out)
+}
+
+fit_model <- function(seed = 1, code, data, constants, inits, niter, nchains, thin = 1, nburnin = 0, monitors){
+  library(nimble)
+
+  # R model
+  model <- nimbleModel(code, constants, data)
+
+  # C model
+  model_c <- compileNimble(model)
+
+  # R mcmc
+  model_conf <- configureMCMC(model)
+  model_conf$addMonitors(monitors)
+
+  # R mcmc
+  mcmc <- buildMCMC(model_conf)
+
+  # C mcmc
+  mcmc_c <- compileNimble(mcmc, project = model_c)
+
+  # run model
+  out <- runMCMC(
+    mcmc_c,
+    niter = niter,
+    nchains = nchains,
+    thin = thin,
+    init = inits,
+    setSeed = seed,
+    nburnin = nburnin
+  )
+
+  # out
+  return(out)
+}
+
+sim_occ <- function(mean.occ = list(lwr = NULL, upr = NULL),
+                    detect.prob = list(lwr = NULL, upr = NULL),
+                    D.site = 10,
+                    D.samp = 0,
+                    nsite.important = 5,
+                    nsamp.important = 0,
+                    nsite = 100,
+                    nsamp = 5,
+                    seed = NULL){
+  if(!is.null(seed)) set.seed(seed)
+
+  logit <- function(x){
+    out <- log(x/(1-x))
+    return(out)
+  }
+
+  invlogit <- function(x){
+    out <- exp(x)/(1 + exp(x))
+    return(out)
+  }
+
+  site <- 1:nsite
+  samp <- 1:nsamp
+
+  if(!is.numeric(D.site)){
+    stop("D.site must be numeric.")
+  } else if (nsite.important > D.site){
+    stop("nsite.important must be less than or equal to D.site.")
+  } else if(D.site == 0){
+    beta <- round(runif(1, -2, 2), 2)
+
+    intercept <- rep(1, nsite)
+
+    x <- as.matrix(intercept, nrow = nsite, ncol = 1)
+
+    psi <- invlogit(x %*% beta)
+  } else if(D.site > 0) {
+    beta <- round(runif(D.site, -2, 2), 2)
+
+    which_beta <- sample(seq(1:D.site), nsite.important)
+
+    for(i in 1:D.site){
+      if(i %in% which_beta){
+        beta[i] <- beta[i]
+      } else {
+        beta[i] <- 0
+      }
+    }
+
+    beta <- c(round(runif(1, -2, 2), 2), beta)
+
+    covs <- rnorm(D.site*nsite, 0, 1)
+    covs <- matrix(covs, nrow = nsite, ncol = D.site)
+
+    for(i in 1:D.site){
+      covs[, i] <- (covs[, i] - mean(covs[, i]))/sd(covs[, i])
+    }
+
+    colnames(covs) <- paste0("x", 1:D.site)
+
+    intercept <- rep(1, nsite)
+
+    x <- cbind(intercept, covs)
+
+    psi <- invlogit(x %*% beta)
+  }
+
+  z <- rbinom(nsite, 1, psi)
+
+  if(is.null(mean.occ$lwr) | is.null(mean.occ$upr)){
+    stop("you must specify a lower and upper limit for mean.occ.")
+  } else if (!is.numeric(mean.occ$lwr) | !is.numeric(mean.occ$upr)){
+    stop("the lower and upper bounds for mean.occ must be numeric.")
+  } else if (mean.occ$lwr > mean.occ$upr){
+    stop("the lower limit for mean.occ must be less than or equal to the upper limit.")
+  } else if(mean.occ$lwr == mean.occ$upr & D.site == 0){
+    x <- matrix(intercept, nrow = nsite, ncol = 1)
+
+    beta <- invlogit(mean.occ$lwr)
+
+    psi <- invlogit(x %*% beta)
+  } else if (is.numeric(mean.occ$lwr) & is.numeric(mean.occ$upr)){
+    while(mean(z) > mean.occ$upr | mean(z) < mean.occ$lwr){
+      beta[1] <- c(round(runif(1, -2, 2), 2))
+
+      psi <- invlogit(x %*% beta)
+
+      z <- rbinom(nsite, 1, psi)
+    }
+  }
+
+  site_df <- data.frame(site = site, z = z, psi = psi, covs)
+
+  samp_df <- expand.grid(site = site, samp = samp) %>%
+    arrange(site) %>%
+    data.frame()
+
+  samp_df <- samp_df %>%
+    left_join(., site_df, by = c("site")) %>%
+    select(site, samp, z)
+
+  if(!is.numeric(D.samp)){
+    stop("D.samp must be numeric.")
+  } else if(nsamp.important > D.samp){
+    stop("nsamp.important must be less than or equal to D.samp")
+  } else if(D.samp == 0){
+    alpha <- round(runif(1, -2, 2), 2)
+
+    intercept <- rep(1, nsite*nsamp)
+
+    w <- matrix(intercept, nrow = nsite*nsamp, ncol = 1)
+
+    samp_df$p <- invlogit(w * alpha)
+  } else if(D.samp > 0) {
+    alpha <- round(runif(D.samp, -2, 2), 2)
+
+    which_alpha <- sample(seq(1:D.samp), nsamp.important)
+
+    for(i in 1:D.samp){
+      if(i %in% which_alpha){
+        alpha[i] <- alpha[i]
+      } else {
+        alpha[i] <- 0
+      }
+    }
+
+    alpha <- c(round(runif(1, -2, 2), 2), alpha)
+
+    covs <- rnorm(D.samp*nsite*nsamp, 0, 1)
+    covs <- matrix(covs, nrow = nsite*nsamp, ncol = D.samp)
+
+    for(i in 1:D.samp){
+      covs[, i] <- (covs[, i] - mean(covs[, i]))/sd(covs[, i])
+    }
+
+    colnames(covs) <- paste0("w", 1:D.samp)
+
+    intercept <- rep(1, nsite*nsamp)
+
+    w <- cbind(intercept, covs)
+
+    samp_df$p <- invlogit(w %*% alpha)
+  }
+
+  if(is.null(detect.prob$lwr) | is.null(detect.prob$upr)){
+    stop("you must specify a lower and upper limit for detect.prob.")
+  } else if (!is.numeric(detect.prob$lwr) | !is.numeric(detect.prob$upr)){
+    stop("the lower and upr bounds for detect.prob must be numeric.")
+  } else if (detect.prob$lwr > detect.prob$upr){
+    stop("the lower limit for detect.prob must be less than or equal to the upper limit.")
+  } else if (detect.prob$lwr == detect.prob$upr & D.samp == 0){
+    w <- matrix(intercept, nrow = nsite*nsamp, ncol = 1)
+
+    alpha <- logit(detect.prob$lwr)
+
+    samp_df$p <- invlogit(w %*% alpha)
+  } else if (is.numeric(detect.prob$lwr) & is.numeric(detect.prob$upr)){
+      while(mean(samp_df$p) > detect.prob$upr | mean(samp_df$p) < detect.prob$lwr){
+        alpha[1] <- c(round(runif(1, -2, 2), 2))
+
+        samp_df$p <- invlogit(w %*% alpha)
+
+        samp_df$y <- rbinom(nrow(samp_df), 1, samp_df$p * samp_df$z)
+      }
+  }
+
+  samp_df$y <- rbinom(nrow(samp_df), 1, samp_df$p * samp_df$z)
+
+  samp_df <- cbind(samp_df, covs)
+
+  truth <- samp_df %>%
+    left_join(., site_df, by = c("site", "z"))
+
+  df <- truth %>%
+    select(!c(psi, z, p))
+
+  samp_df <- samp_df %>%
+    select(!c(z, p))
+
+  out <- list(dat = list(df = df,
+                         site_df = site_df,
+                         samp_df = samp_df),
+              truth = truth,
+              beta = beta,
+              alpha = alpha
+  )
+
+  return(out)
+}
+
+# tau.method must be one of: "C+(0,1)", "naive", "0.5", "model", "prior"
+
+## if the prior is half cauchy(0,1) and there are no covariates for detection probability, the model code is
+
+nimbleCode({
+  # priors
+  beta0 ~ dnorm(0, var = 2)
+  for(i in 1:D.site){beta[i] ~ dnorm(0, tau.sq*t_lambda.sq[i])}
+  for(i in 1:D.site){t_lambda.sq[i] <- (c.sq*lambda.sq[i]^2)/(c.sq + tau.sq*lambda.sq[i])}
+  for(i in 1:D.site){lambda[i] ~ T(dt(0, 1, df = 1), 0, )}
+  for(i in 1:D.site){lambda.sq[i] <- lambda[i]^2}
+  c.sq ~ dinvgamma(df_slab/2, df_slab*scale_slab/2)
+  tau ~ T(dt(0, 1, df = 1), 0, )
+  tau.sq <- tau^2
+  alpha0 ~ dnorm(0, var = 2)
+
+  logit(psi) <- beta0 + x %*% beta
+
+  for(i in 1:nrow_site_df){
+    z[i] ~ dbern(psi[i])
+  }
+
+  logit(p) <- alpha0
+
+  for(i in 1:nrow_samp_df){
+    y[i] ~ dbern(z[site_season_ndx[i]] * p[i])
+  }
+})
+
+## if the prior is based on naive occupancy and there are no covariates for detection probability, the model code is
+
+nimbleCode({
+  # priors
+  beta0 ~ dnorm(0, var = 2)
+  for(i in 1:D.site){beta[i] ~ dnorm(0, tau.sq*t_lambda.sq[i])}
+  for(i in 1:D.site){t_lambda.sq[i] <- (c.sq*lambda.sq[i]^2)/(c.sq + tau.sq*lambda.sq[i])}
+  for(i in 1:D.site){lambda[i] ~ T(dt(0, 1, df = 1), 0, )}
+  for(i in 1:D.site){lambda.sq[i] <- lambda[i]^2}
+  c.sq ~ dinvgamma(df_slab/2, df_slab*scale_slab/2)
+  tau ~ T(dt(0, tau0, df = 1), 0, )
+  tau.sq <- tau^2
+  pseudovar.site <- mean(naiveocc)^(-1)*(1-mean(naiveocc))^(-1)
+  tau0 <- p0.site/(D.site - p0.site)*sqrt(pseudovar.site)/sqrt(nsite)
+  tau0.sq <- tau0^2
+  alpha0 ~ dnorm(0, var = 2)
+
+  logit(psi) <- beta0 + x %*% beta
+
+  for(i in 1:nrow_site_df){
+    z[i] ~ dbern(psi[i])
+  }
+
+  logit(p) <- alpha0
+
+  for(i in 1:nrow_samp_df){
+    y[i] ~ dbern(z[site_season_ndx[i]] * p[i])
+  }
+})
+
+## if the prior is based on 0.5 as the mean of the latent occupancy states and there are no covariates for detection probability, the model code is
+
+nimbleCode({
+  # priors
+  beta0 ~ dnorm(0, var = 2)
+  for(i in 1:D.site){beta[i] ~ dnorm(0, tau.sq*t_lambda.sq[i])}
+  for(i in 1:D.site){t_lambda.sq[i] <- (c.sq*lambda.sq[i]^2)/(c.sq + tau.sq*lambda.sq[i])}
+  for(i in 1:D.site){lambda[i] ~ T(dt(0, 1, df = 1), 0, )}
+  for(i in 1:D.site){lambda.sq[i] <- lambda[i]^2}
+  c.sq ~ dinvgamma(df_slab/2, df_slab*scale_slab/2)
+  tau ~ T(dt(0, tau0, df = 1), 0, )
+  tau.sq <- tau^2
+  pseudovar.site <- 0.5^(-1)*(1-0.5)^(-1)
+  tau0 <- p0.site/(D.site - p0.site)*sqrt(pseudovar.site)/sqrt(nsite)
+  tau0.sq <- tau0^2
+  alpha0 ~ dnorm(0, var = 2)
+
+  logit(psi) <- beta0 + x %*% beta
+
+  for(i in 1:nrow_site_df){
+    z[i] ~ dbern(psi[i])
+  }
+
+  logit(p) <- alpha0
+
+  for(i in 1:nrow_samp_df){
+    y[i] ~ dbern(z[site_season_ndx[i]] * p[i])
+  }
+})
+
+## if the prior is based on the modeled mean of the latent occupancy states using no covariates, and there are no covariates for detection probability, the model code is
+
+### fit model without covariates
+
+### function to fit the model with no covariates
+
+est_nocovs <- function(data = list(site_df = NULL, samp_df = NULL)){
+  library(parallel)
+  library(coda)
+
+  nocovs_code <- nimbleCode({
+    # priors
+    beta0 ~ dnorm(0, var = 2)
+    alpha0 ~ dnorm(0, var = 2)
+
+    logit(psi) <- beta0
+
+    for(i in 1:nrow_site_df){
+      z[i] ~ dbern(psi)
+    }
+
+    logit(p) <- alpha0
+
+    for(i in 1:nrow_samp_df){
+      y[i] ~ dbern(z[site_ndx[i]] * p)
+    }
+  })
+
+  site_df <- data$site_df
+
+  samp_df <- data$samp_df
+
+  samp_df <- samp_df %>%
+    group_by(site) %>%
+    arrange(site)
+
+  init_nocovs <- function(){
+    out <- list(
+      alpha0 = runif(1, -2, 2),
+      beta0 = runif(1, -2, 2),
+      z = rbinom(nrow(site_df), 1, .5)
+    )
+    return(out)
+  }
+
+  this_cluster <- makeCluster(3)
+  fit <- parLapply(
+    cl = this_cluster,
+    X = 1:3,
+    fun = fit_model,
+    code = nocovs_code,
+    data = list(y = samp_df$y),
+    constants = list(
+      # loop constants
+      nsite = nrow(site_df),
+      nrow_site_df = nrow(site_df),
+      nrow_samp_df = nrow(samp_df),
+
+      # indices
+      site_ndx = samp_df$site
+    ),
+    niter = 2000,
+    nchains = 1,
+    thin = 1,
+    nburnin = 0,
+    inits = init_nocovs(),
+    monitors = c("z")
+  )
+  stopCluster(this_cluster)
+
+  warmup = nrow(fit[[1]])/2
+
+  fit_warmup <- lapply(fit, function(x) x[(warmup+1):nrow(x),])
+
+  fit_warmup <- do.call("rbind", fit_warmup)
+
+  fit_warmup <- data.frame(fit_warmup)
+
+  fit_warmup <- fit_warmup %>%
+    select(contains("z"))
+
+  colmodes <- apply(fit_warmup, 2, getmode)
+
+  out <- mean(colmodes)
+
+  return(out)
+}
+
+mean_z <- est_nocovs(data = list(site_df = site_df, samp_df = samp_df))
+
+nimbleCode({
+  # priors
+  beta0 ~ dnorm(0, var = 2)
+  for(i in 1:D.site){beta[i] ~ dnorm(0, tau.sq*t_lambda.sq[i])}
+  for(i in 1:D.site){t_lambda.sq[i] <- (c.sq*lambda.sq[i]^2)/(c.sq + tau.sq*lambda.sq[i])}
+  for(i in 1:D.site){lambda[i] ~ T(dt(0, 1, df = 1), 0, )}
+  for(i in 1:D.site){lambda.sq[i] <- lambda[i]^2}
+  c.sq ~ dinvgamma(df_slab/2, df_slab*scale_slab/2)
+  tau ~ T(dt(0, tau0, df = 1), 0, )
+  tau.sq <- tau^2
+  pseudovar.site <- mean_z[1]^(-1)*(1-mean_z[1])^(-1)
+  tau0 <- p0.site/(D.site - p0.site)*sqrt(pseudovar.site)/sqrt(nsite)
+  tau0.sq <- tau0^2
+  alpha0 ~ dnorm(0, var = 2)
+
+  logit(psi) <- beta0 + x %*% beta
+
+  for(i in 1:nrow_site_df){
+    z[i] ~ dbern(psi[i])
+  }
+
+  logit(p) <- alpha0
+
+  for(i in 1:nrow_samp_df){
+    y[i] ~ dbern(z[site_season_ndx[i]] * psi[i])
+  }
+})
+
+## if the prior has a prior for the mean of the latent occupancy states and there are no covariates for detection probability, the model code is
+
+nimbleCode({
+  # priors
+  beta0 ~ dnorm(0, var = 2)
+  for(i in 1:D.site){beta[i] ~ dnorm(0, tau.sq*t_lambda.sq[i])}
+  for(i in 1:D.site){t_lambda.sq[i] <- (c.sq*lambda.sq[i]^2)/(c.sq + tau.sq*lambda.sq[i])}
+  for(i in 1:D.site){lambda[i] ~ T(dt(0, 1, df = 1), 0, )}
+  for(i in 1:D.site){lambda.sq[i] <- lambda[i]^2}
+  c.sq ~ dinvgamma(df_slab/2, df_slab*scale_slab/2)
+  tau ~ T(dt(0, tau0, df = 1), 0, )
+  tau.sq <- tau^2
+  mean_z ~ dunif(0, 1)
+  pseudovar.site <- mean_z^(-1)*(1-mean_z)^(-1)
+  tau0 <- p0.site/(D.site - p0.site)*sqrt(pseudovar.site)/sqrt(nsite)
+  tau0.sq <- tau0^2
+  alpha0 ~ dnorm(0, var = 2)
+
+  logit(psi) <- beta0 + x %*% beta
+
+  for(i in 1:nrow_site_df){
+    z[i] ~ dbern(psi[i])
+  }
+
+  logit(p) <- alpha0
+
+  for(i in 1:nrow_samp_df){
+    y[i] ~ dbern(z[site_season_ndx[i]] * p[i])
+  }
+})
+
+
+cauchy01_code <- function(tau.method = "C+(0,1)", D.site  = NULL, D.samp = 0, model = "occ", scale.slab = 2, df.slab = 4){
+  library(nimble)
+  nbeta = D.site + 1
+  nalpha = D.samp + 1
+
+  if(D.samp > 0){
+    stop("at this time, the function only allows covariates for occupancy, please use the default D.samp = 0.")
+  } else if(nbeta > 1 & nalpha == 1){
+    out <- nimbleCode({
+      # priors
+      beta0 ~ dnorm(0, var = 2)
+      for(i in 1:D.site){beta[i] ~ dnorm(0, tau.sq*t_lambda.sq[i])}
+      for(i in 1:D.site){t_lambda.sq[i] <- (c.sq*lambda.sq[i]^2)/(c.sq + tau.sq*lambda.sq[i])}
+      for(i in 1:D.site){lambda[i] ~ T(dt(0, 1, df = 1), 0, )}
+      for(i in 1:D.site){lambda.sq[i] <- lambda[i]^2}
+      c.sq ~ dinvgamma(df_slab/2, df_slab*scale_slab/2)
+      tau ~ T(dt(0, 1, df = 1), 0, )
+      tau.sq <- tau^2
+      alpha0 ~ dnorm(0, var = 2)
+
+      logit(psi) <- beta0 + x %*% beta
+
+      for(i in 1:nrow_site_df){
+        z[i] ~ dbern(psi[i])
+      }
+
+      logit(p) <- alpha0
+
+      for(i in 1:nrow_samp_df){
+        y[i] ~ dbern(z[site_season_ndx[i]] * psi[i])
+      }
+    })
+  }
+  return(out)
+}
+
+naive_code <- function(tau.method = "naive", D.site  = NULL, D.samp = 0, model = "occ", p0.site = NULL, scale.slab = 2, df.slab = 4){
+  library(nimble)
+  nbeta = D.site + 1
+  nalpha = D.samp + 1
+
+  if(D.samp > 0){
+    stop("at this time, the function only allows covariates for occupancy, please use the default D.samp = 0.")
+  } else if (nbeta > 1 & nalpha == 1){
+    out <- nimbleCode({
+      # priors
+      beta0 ~ dnorm(0, var = 2)
+      for(i in 1:D.site){beta[i] ~ dnorm(0, tau.sq*t_lambda.sq[i])}
+      for(i in 1:D.site){t_lambda.sq[i] <- (c.sq*lambda.sq[i]^2)/(c.sq + tau.sq*lambda.sq[i])}
+      for(i in 1:D.site){lambda[i] ~ T(dt(0, 1, df = 1), 0, )}
+      for(i in 1:D.site){lambda.sq[i] <- lambda[i]^2}
+      c.sq ~ dinvgamma(df_slab/2, df_slab*scale_slab/2)
+      tau ~ T(dt(0, tau0, df = 1), 0, )
+      tau.sq <- tau^2
+      pseudovar.site <- mean(naiveocc)^(-1)(1-mean(naiveocc))^(-1)
+      tau0 <- p0.site/(D.site - p0.site)*sqrt(pseudovar.site)/sqrt(nsite)
+      tau0.sq <- tau0^2
+      alpha0 ~ dnorm(0, var = 2)
+
+      logit(psi) <- beta0 + x %*% beta
+
+      for(i in 1:nrow_site_df){
+        z[i] ~ dbern(psi[i])
+      }
+
+      logit(p) <- alpha0
+
+      for(i in 1:nrow_samp_df){
+        y[i] ~ dbern(z[site_ndx[i]] * p[i])
+      }
+    })
+  }
+  return(out)
+}
+
+covs <- sim_data$dat$df %>% select(which(grepl("x", colnames(.))))
+
+x <- cbind(intercept = 1, covs)

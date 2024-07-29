@@ -1,0 +1,985 @@
+# generate plots for Presentation
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+logit <- function(x){
+  out <- log(x/(1-x))
+  return(out)
+}
+
+invlogit <- function(x){
+  out <- exp(x)/(1 + exp(x))
+  return(out)
+}
+
+## complete
+complete <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_complete/summary_df_list.rds"))
+latent_complete <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_complete/summary_df_list_latent.rds"))
+
+## pattern
+pattern <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_pattern/summary_df_list.rds"))
+latent_pattern <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_pattern/summary_df_list_latent.rds"))
+
+## sporadic
+sporadic <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_sporadic1/summary_df_list.rds"))
+latent_sporadic <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_sporadic1/summary_df_list_latent.rds"))
+
+## miss10
+miss10 <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_sporadic_miss10/summary_df_list.rds"))
+latent_miss10 <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_sporadic_miss10/summary_df_list_latent.rds"))
+
+## miss50
+miss50 <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_sporadic_miss50/summary_df_list.rds"))
+latent_miss50 <- do.call("rbind", readRDS("E:/meaghan_implicit_sims/covs_sporadic_miss50/summary_df_list_latent.rds"))
+
+# summary data sets
+## complete
+sum_complete <- complete %>%
+  mutate(param2 = ifelse(grepl("psi[[]", param), paste0("psi", rep(1:10, 10000)), "p"),
+         param3 = ifelse(param2 %in% c("psi2", "psi3", "psi4", "psi5", "psi6", "psi7", "psi8", "psi9", "psi10"), "subsequent_psi", param2),
+         width = upr - lwr,
+         bias = mean - truth) %>%
+  group_by(model, param3, sim) %>%
+  summarise(coverage = sum(capture == 1)/n(),
+            width = sum(width)/n(),
+            bias = sum(bias)/n()) %>%
+  mutate(scenario = "complete")
+
+latent_sum_complete <- latent_complete %>%
+  mutate(param2 = paste0("z", rep(1:10, 10000)),
+         param3 = "z") %>%
+  group_by(model, param3, sim) %>%
+  summarise(correct = sum(correct == 1)/n(),
+            scenario = "complete")
+
+sum_complete <- sum_complete %>%
+  mutate(param3 = factor(param3, levels = c("p",
+                                            "psi1",
+                                            "subsequent_psi")),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+latent_sum_complete <- latent_sum_complete %>%
+  mutate(model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+## pattern
+sum_pattern <- pattern %>%
+  mutate(param2 = ifelse(grepl("psi[[]", param), paste0("psi", rep(c(1, 3, 5, 7, 9), 10000)), "p"),
+         param3 = ifelse(param2 %in% c("psi3", "psi5", "psi7", "psi9"), "subsequent_psi", param2),
+         width = upr - lwr,
+         bias = mean - truth) %>%
+  group_by(model, param3, sim) %>%
+  summarise(coverage = sum(capture == 1)/n(),
+            width = sum(width)/n(),
+            bias = sum(bias)/n()) %>%
+  mutate(scenario = "pattern")
+
+latent_sum_pattern <- latent_pattern %>%
+  mutate(param2 = paste0("z", rep(c(1, 3, 5, 7, 9), 10000)),
+         param3 = "z") %>%
+  group_by(model, param3, sim) %>%
+  summarise(correct = sum(correct == 1)/n(),
+            scenario = "pattern")
+
+sum_pattern <- sum_pattern %>%
+  mutate(param3 = factor(param3, levels = c("p",
+                                            "psi1",
+                                            "subsequent_psi")),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+latent_sum_pattern <- latent_sum_pattern %>%
+  mutate(model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+## sporadic
+sum_sporadic <- sporadic %>%
+  mutate(param2 = ifelse(grepl("psi[[]", param), paste0("psi", rep(1:10, 10000)), "p"),
+         param3 = ifelse(param2 %in% c("psi2", "psi3", "psi4", "psi5", "psi6", "psi7", "psi8", "psi9", "psi10"), "subsequent_psi", param2),
+         width = upr - lwr,
+         bias = mean - truth) %>%
+  group_by(model, param3, sim) %>%
+  summarise(coverage = sum(capture == 1)/n(),
+            width = sum(width)/n(),
+            bias = sum(bias)/n()) %>%
+  mutate(scenario = "sporadic")
+
+latent_sum_sporadic <- latent_sporadic %>%
+  mutate(param2 = paste0("z", rep(1:10, 10000)),
+         param3 = "z") %>%
+  group_by(model, param3, sim) %>%
+  summarise(correct = sum(correct == 1)/n(),
+            scenario = "sporadic")
+
+sum_sporadic <- sum_sporadic %>%
+  mutate(param3 = factor(param3, levels = c("p",
+                                            "psi1",
+                                            "subsequent_psi")),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+latent_sum_sporadic <- latent_sum_sporadic %>%
+  mutate(model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+## miss10
+sum_miss10 <- miss10 %>%
+  mutate(param2 = ifelse(grepl("psi[[]", param), paste0("psi", rep(1:10, 10000)), "p"),
+         param3 = ifelse(param2 %in% c("psi2", "psi3", "psi4", "psi5", "psi6", "psi7", "psi8", "psi9", "psi10"), "subsequent_psi", param2),
+         width = upr - lwr,
+         bias = mean - truth) %>%
+  group_by(model, param3, sim) %>%
+  summarise(coverage = sum(capture == 1)/n(),
+            width = sum(width)/n(),
+            bias = sum(bias)/n()) %>%
+  mutate(scenario = "miss10")
+
+latent_sum_miss10 <- latent_miss10 %>%
+  mutate(param2 = paste0("z", rep(1:10, 10000)),
+         param3 = "z") %>%
+  group_by(model, param3, sim) %>%
+  summarise(correct = sum(correct == 1)/n(),
+            scenario = "miss10")
+
+sum_miss10 <- sum_miss10 %>%
+  mutate(param3 = factor(param3, levels = c("p",
+                                            "psi1",
+                                            "subsequent_psi")),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+latent_sum_miss10 <- latent_sum_miss10 %>%
+  mutate(model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+## miss50
+sum_miss50 <- miss50 %>%
+  mutate(param2 = ifelse(grepl("psi[[]", param), paste0("psi", rep(1:10, 10000)), "p"),
+         param3 = ifelse(param2 %in% c("psi2", "psi3", "psi4", "psi5", "psi6", "psi7", "psi8", "psi9", "psi10"), "subsequent_psi", param2),
+         width = upr - lwr,
+         bias = mean - truth) %>%
+  group_by(model, param3, sim) %>%
+  summarise(coverage = sum(capture == 1)/n(),
+            width = sum(width)/n(),
+            bias = sum(bias)/n()) %>%
+  mutate(scenario = "miss50")
+
+latent_sum_miss50 <- latent_miss50 %>%
+  mutate(param2 = paste0("z", rep(1:10, 10000)),
+         param3 = "z") %>%
+  group_by(model, param3, sim) %>%
+  summarise(correct = sum(correct == 1)/n(),
+            scenario = "miss50")
+
+sum_miss50 <- sum_miss50 %>%
+  mutate(param3 = factor(param3, levels = c("p",
+                                            "psi1",
+                                            "subsequent_psi")),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+latent_sum_miss50 <- latent_sum_miss50 %>%
+  mutate(model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+
+sum_data <- rbind(sum_complete, sum_pattern, sum_sporadic, sum_miss10, sum_miss50)
+
+sum_data$scenario <- factor(sum_data$scenario, levels = c("complete", "pattern", "sporadic", "miss10", "miss50"))
+
+# coverage plots
+## complete
+sum_complete %>% ggplot(aes(x = model, y = coverage, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  geom_hline(yintercept = 0.95) +
+  labs(y = "average coverage") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## pattern
+sum_pattern %>% ggplot(aes(x = model, y = coverage, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  geom_hline(yintercept = 0.95) +
+  labs(y = "average coverage") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## sporadic
+sum_sporadic %>% ggplot(aes(x = model, y = coverage, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  geom_hline(yintercept = 0.95) +
+  labs(y = "average coverage") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## miss10
+sum_miss10 %>% ggplot(aes(x = model, y = coverage, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  geom_hline(yintercept = 0.95) +
+  labs(y = "average coverage") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## miss50
+sum_miss50 %>% ggplot(aes(x = model, y = coverage, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  geom_hline(yintercept = 0.95) +
+  labs(y = "average coverage") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## overall
+sum_data %>% ggplot(aes(x = model, y = coverage, color = model)) +
+  facet_grid(rows = vars(param3),
+             cols = vars(scenario)) +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.15) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.25,
+               color = "azure4") +
+  geom_hline(yintercept = 0.95) +
+  labs(y = "average coverage",
+       x = "") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+# bias plots
+## complete
+sum_complete %>% ggplot(aes(x = model, y = bias, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  labs(y = "average bias") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## pattern
+sum_pattern %>% ggplot(aes(x = model, y = bias, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  labs(y = "average bias") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## sporadic
+sum_sporadic %>% ggplot(aes(x = model, y = bias, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  labs(y = "average bias") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## miss10
+sum_miss10 %>% ggplot(aes(x = model, y = bias, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  labs(y = "average bias") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## miss50
+sum_miss50 %>% ggplot(aes(x = model, y = bias, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  labs(y = "average bias") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## overall
+sum_data %>% ggplot(aes(x = model, y = bias, color = model)) +
+  facet_grid(rows = vars(param3),
+             cols = vars(scenario)) +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.15) +
+  labs(y = "average bias",
+       x = "") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.25,
+               color = "azure4") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+# credible interval width plots
+## complete
+sum_complete %>% ggplot(aes(x = model, y = width, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  labs(y = "average width") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## pattern
+sum_pattern %>% ggplot(aes(x = model, y = width, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  labs(y = "average width") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## sporadic
+sum_sporadic %>% ggplot(aes(x = model, y = width, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  labs(y = "average width") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## miss10
+sum_miss10 %>% ggplot(aes(x = model, y = width, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  labs(y = "average width") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## miss50
+sum_miss50 %>% ggplot(aes(x = model, y = width, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  labs(y = "average width") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+## overall
+sum_data %>% ggplot(aes(x = model, y = width, color = model)) +
+  facet_grid(rows = vars(param3),
+             cols = vars(scenario)) +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.15) +
+  labs(y = "average width",
+       x = "") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.25,
+               color = "azure4") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+# occupancy estimate plot
+latent <- bind_rows(latent_sum_complete,
+                    latent_sum_pattern,
+                    latent_sum_sporadic,
+                    latent_sum_miss10,
+                    latent_sum_miss50)
+
+latent <- latent %>%
+  mutate(scenario = factor(scenario, levels = c("complete",
+                                                "pattern",
+                                                "sporadic",
+                                                "miss10",
+                                                "miss50")))
+
+
+latent %>% ggplot(aes(x = model, y = correct, color = model)) +
+  facet_wrap(facets = "scenario", nrow = 1) +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  labs(y = "proportion of correct latent states") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+# frog data
+library(tidyverse)
+frog_data <- read_csv("C:/Users/mwind/OneDrive/Dynamic_Occ_Sampling/Manuscript/Manuscript/real data analysis/frog_data.csv", na = c("", "NA", "-"))
+
+frog_data <- frog_data %>%
+  mutate(long = Long,
+         lat = Lat)
+
+# Create a data frame with the point data
+library(ggmap)
+library(ggsn)
+api <- read.table("API_Key.txt")
+register_google(key = api)
+map <- get_map(location = c(mean(frog_data$Long), mean(frog_data$Lat)), zoom = 9, maptype = "terrain-background", source = "google")
+ggmap(map, extent = 'device') +
+  geom_point(aes(x = long, y = lat), color = "#606060", alpha = 1, size = 1.2,
+             data = frog_data)  +
+  scalebar(x.min = -108.5, x.max = max(frog_data$long),
+           y.min = min(frog_data$lat), y.max = 46.2,
+           location = "bottomright", dist = 10, dist_unit = "km",
+           st.dist = 0.02, st.size = 2, border.size = 0.1,
+           transform = TRUE, model = "WGS84")
+
+frog_imputed <- frog_data %>%
+  mutate(Shallow_2012 = case_when(!is.na(Shallow_2012) ~ Shallow_2012,
+                                  is.na(Shallow_2012) ~ Shallow_2013))
+
+mean_2012 <- mean(frog_imputed$Shallow_2012)
+sd_2012 <- sd(frog_imputed$Shallow_2012)
+
+# reformat frog data
+frog_long <- frog_imputed %>%
+  pivot_longer(cols = 2:11,
+               names_to = "visit",
+               values_to = "response") %>%
+  mutate(year = substring(visit, 1, 4),
+         visit = substring(visit, regexpr("_", visit) + 1),
+         site_name = Site,
+         site = as.numeric(factor(Site)),
+         season = case_when(year == "2012" ~ 1,
+                            year == "2013" ~ 2,
+                            year == "2014" ~ 3,
+                            year == "2015" ~ 4,
+                            year == "2016" ~ 5),
+         depth = case_when(year == "2012" ~ Depth_2012,
+                           year == "2013" ~ Depth_2013,
+                           year == "2014" ~ Depth_2014,
+                           year == "2015" ~ Depth_2015,
+                           year == "2016" ~ Depth_2016),
+         area = case_when(year == "2012" ~ Area_2012,
+                          year == "2013" ~ Area_2013,
+                          year == "2014" ~ Area_2014,
+                          year == "2015" ~ Area_2015,
+                          year == "2016" ~ Area_2016),
+         emergent = case_when(year == "2012" ~ Emergent_2012,
+                              year == "2013" ~ Emergent_2013,
+                              year == "2014" ~ Emergent_2014,
+                              year == "2015" ~ Emergent_2015,
+                              year == "2016" ~ Emergent_2016),
+         risk = case_when(year == "2012" ~ Risk_2012,
+                          year == "2013" ~ Risk_2013,
+                          year == "2014" ~ Risk_2014,
+                          year == "2015" ~ Risk_2015,
+                          year == "2016" ~ Risk_2016),
+         year_2013 = case_when(year == "2013" ~ 1,
+                              TRUE ~ 0),
+         year_2014 = case_when(year == "2014" ~ 1,
+                               TRUE ~ 0),
+         year_2015 = case_when(year == "2015" ~ 1,
+                               TRUE ~ 0),
+         year_2016 = case_when(year == "2016" ~ 1,
+                               TRUE ~ 0),
+         distance_standard = (Distance_artificial-mean(Distance_artificial))/sd(Distance_artificial),
+         shallow_standard = (Shallow_2012 - mean_2012)/sd_2012)
+
+frog_detect <- frog_long %>%
+  group_by(site, season) %>%
+  summarise(n.detect = sum(response))
+
+# manually override this site/season combination
+frog_detect$n.detect[frog_detect$site == 56 & frog_detect$season == 1] <- 0
+
+frog_detect <- frog_detect %>%
+  mutate(naive_detect = ifelse(n.detect >= 1, 1, 0),
+         site = factor(site),
+         season = factor(season),
+         naive_detect = factor(naive_detect))
+
+ggplot(frog_detect, aes(y = site, x = season)) +
+  geom_tile(aes(fill = naive_detect)) +
+  scale_x_discrete(position = "top") +
+  scale_y_discrete(limits = rev) +
+  labs(x = "season", y = "site") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank())
+
+frog_detect %>%
+  group_by(season) %>%
+  summarise(sum(is.na(naive_detect)))
+
+## summarize frog model results
+summary_df <- readRDS("C:/Users/mwind/OneDrive/Dynamic_Occ_Sampling/Manuscript/Manuscript/real data analysis/summary_df.rds")
+latent_df <- readRDS("C:/Users/mwind/OneDrive/Dynamic_Occ_Sampling/Manuscript/Manuscript/real data analysis/latent_summary_df.rds")
+pred_df <- readRDS("C:/Users/mwind/OneDrive/Dynamic_Occ_Sampling/Manuscript/Manuscript/real data analysis/beta_df.rds")
+
+# use the same colors as above for the models
+library(scales)
+colors <- hue_pal()(4)
+colors <- colors[c(1, 3, 4)]
+
+det_summary <- summary_df %>%
+  filter(param %in% c("p[1]", "p[3]", "p[5]", "p[7]", "p[9]")) %>%
+  mutate(year = rep(2012:2016, 3),
+         param = "p",
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+p_plot <- det_summary %>% ggplot(aes(x = year, y = mean, color = model)) +
+  geom_point(position = position_dodge(width=0.40)) +
+  geom_linerange(aes(ymin = lwr, ymax = upr),
+                 position = position_dodge(width=0.40)) +
+  scale_color_manual(values = colors) +
+  labs(y = "detection probability",
+       title = "Estimated detection probability") +
+  ylim(0, 1) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank())
+
+legend <- ggpubr::get_legend(ggplot(det_summary, aes(y = mean, x = year, color = model)) +
+                               geom_point() +
+                               scale_color_manual(values = colors) +
+                               theme_bw() +
+                               theme(panel.grid.major = element_blank(),
+                                     panel.grid.minor = element_blank(),
+                                     plot.title = element_text(hjust = 0.5)))
+
+legend <- ggpubr::as_ggplot(legend)
+
+ggsave("frog_legend.png", legend)
+
+frog_season_df <- frog_long %>%
+  group_by(site, season) %>%
+  select(site, season, shallow_standard, Shallow_2012, distance_standard, Distance_artificial) %>%
+  arrange(site, season) %>%
+  unique()
+
+# occupancy estimates
+pred_df <- pred_df %>%
+  mutate(season = case_when(grepl("psi1_pred[[]", param) ~ 1,
+                            grepl("psi2_pred[[]", param) ~ 2,
+                            grepl("psi3_pred[[]", param) ~ 3,
+                            grepl("psi4_pred[[]", param) ~ 4,
+                            grepl("psi5_pred[[]", param) ~ 5),
+         year = case_when(season == 1 ~ 2012,
+                          season == 2 ~ 2013,
+                          season == 3 ~ 2014,
+                          season == 4 ~ 2014,
+                          season == 5 ~ 2016),
+         shallow = rep(seq(min(frog_season_df$Shallow_2012), max(frog_season_df$Shallow_2012), length.out = 1000), 5*3),
+         distance = rep(seq(min(frog_season_df$Distance_artificial), max(frog_season_df$Distance_artificial), length.out = 1000), 5*3),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+
+
+psi1_plot <- pred_df[pred_df$season == 1, ] %>% ggplot(aes(x = shallow, y = mean, color = model)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lwr, ymax = upr, fill = model), alpha = 0.2) +
+  ylim(0, 1) +
+  labs(y = "occupancy probability",
+       x = "shallows",
+       title = "Estimated occupancy probability in 2012") +
+  scale_color_manual(values = colors) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none")
+
+psi2_plot <- pred_df[pred_df$season == 2, ] %>% ggplot(aes(x = distance, y = mean, color = model)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lwr, ymax = upr, fill = model), alpha = 0.2) +
+  ylim(0, 1) +
+  labs(y = "occupancy probability",
+       x = "distance to artificial water",
+       title = "Estimated occupancy probability in 2013") +
+  scale_color_manual(values = colors) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none")
+
+psi3_plot <- pred_df[pred_df$season == 3, ] %>% ggplot(aes(x = distance, y = mean, color = model)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lwr, ymax = upr, fill = model), alpha = 0.2) +
+  ylim(0, 1) +
+  labs(y = "occupancy probability",
+       x = "distance to artificial water",
+       title = "Estimated occupancy probability in 2014") +
+  scale_color_manual(values = colors) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none")
+
+psi4_plot <- pred_df[pred_df$season == 4, ] %>% ggplot(aes(x = distance, y = mean, color = model)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lwr, ymax = upr, fill = model), alpha = 0.2) +
+  ylim(0, 1) +
+  labs(y = "occupancy probability",
+       x = "distance to artificial water",
+       title = "Estimated occupancy probability in 2015") +
+  scale_color_manual(values = colors) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none")
+
+psi5_plot <- pred_df[pred_df$season == 5, ] %>% ggplot(aes(x = distance, y = mean, color = model)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lwr, ymax = upr, fill = model), alpha = 0.2) +
+  ylim(0, 1) +
+  labs(y = "occupancy probability",
+       x = "distance to artificial water",
+       title = "Estimated occupancy probability in 2016") +
+  scale_color_manual(values = colors) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none")
+
+gridExtra::grid.arrange(psi1_plot, psi2_plot, psi3_plot, psi4_plot, psi5_plot, legend, nrow = 2)
+
+latent_df <- latent_df %>%
+  mutate(site = rep(season_df$site, 3),
+         season = rep(season_df$season, 3),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+latent_df %>% ggplot(aes(x = factor(season), y = factor(site))) +
+  geom_tile(aes(fill = factor(mode))) +
+  facet_wrap(facets = vars(model)) +
+  scale_x_discrete(position = "top") +
+  scale_y_discrete(limits = rev) +
+  labs(x = "season", y = "site") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank())
+
+dynocc_mode <- latent_df %>%
+  filter(model == "dynocc") %>%
+  select(mode)
+
+autologistic_mode <- latent_df %>%
+  filter(model == "autologistic_overall") %>%
+  select(mode)
+
+implicit_mode <- latent_df %>%
+  filter(model == "implicit") %>%
+  select(mode)
+
+sum(dynocc_mode$mode == implicit_mode$mode)/nrow(dynocc_mode)
+sum(dynocc_mode$mode == autologistic_mode$mode)/nrow(dynocc_mode)
+sum(autologistic_mode$mode == implicit_mode$mode)/nrow(autologistic_mode)
+
+sum(dynocc_mode$mode == implicit_mode$mode &
+    implicit_mode$mode == autologistic_mode$mode &
+    dynocc_mode$mode == autologistic_mode$mode)/nrow(dynocc_mode)
+
+
+
+## complete
+complete2 <- do.call("rbind", readRDS("E:/meaghan_implicit_sims2/covs_complete_similar/summary_df_list.rds"))
+complete2_diff <- do.call("rbind", readRDS("E:/meaghan_implicit_sims2/covs_complete_different/summary_df_list.rds"))
+
+# summary data sets
+## complete
+sum_complete2 <- complete2 %>%
+  mutate(param2 = ifelse(grepl("psi[[]", param), paste0("psi", rep(1:10, 10000)), "p"),
+         param3 = ifelse(param2 %in% c("psi2", "psi3", "psi4", "psi5", "psi6", "psi7", "psi8", "psi9", "psi10"), "subsequent_psi", param2),
+         width = upr - lwr,
+         bias = mean - truth) %>%
+  group_by(model, param3, sim) %>%
+  summarise(coverage = sum(capture == 1)/n(),
+            width = sum(width)/n(),
+            bias = sum(bias)/n()) %>%
+  mutate(scenario = "complete")
+
+sum_complete2 <- sum_complete2 %>%
+  mutate(param3 = factor(param3, levels = c("p",
+                                            "psi1",
+                                            "subsequent_psi")),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+sum_complete2_diff <- complete2_diff %>%
+  mutate(param2 = ifelse(grepl("psi[[]", param), paste0("psi", rep(1:10, 10000)), "p"),
+         param3 = ifelse(param2 %in% c("psi2", "psi3", "psi4", "psi5", "psi6", "psi7", "psi8", "psi9", "psi10"), "subsequent_psi", param2),
+         width = upr - lwr,
+         bias = mean - truth) %>%
+  group_by(model, param3, sim) %>%
+  summarise(coverage = sum(capture == 1)/n(),
+            width = sum(width)/n(),
+            bias = sum(bias)/n()) %>%
+  mutate(scenario = "complete")
+
+sum_complete2_diff <- sum_complete2_diff %>%
+  mutate(param3 = factor(param3, levels = c("p",
+                                            "psi1",
+                                            "subsequent_psi")),
+         model = factor(model, levels = c("dynocc",
+                                          "autologistic",
+                                          "autologistic_overall",
+                                          "implicit")))
+
+
+coverage_similar <- sum_complete2 %>% ggplot(aes(x = model, y = coverage, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  geom_hline(yintercept = 0.95) +
+  labs(y = "average coverage") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+
+coverage_different <- sum_complete2_diff %>% ggplot(aes(x = model, y = coverage, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  geom_hline(yintercept = 0.95) +
+  labs(y = "average coverage") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+
+gridExtra::grid.arrange(coverage_similar, coverage_different)
+
+bias_similar <- sum_complete2 %>% ggplot(aes(x = model, y = bias, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  labs(y = "average bias") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+bias_different <- sum_complete2_diff %>% ggplot(aes(x = model, y = bias, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  labs(y = "average bias") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+gridExtra::grid.arrange(bias_similar, bias_different)
+
+width_similar <- sum_complete2 %>% ggplot(aes(x = model, y = width, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  labs(y = "average width") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+width_different <- sum_complete2_diff %>% ggplot(aes(x = model, y = width, color = model)) +
+  facet_wrap(facets = "param3") +
+  geom_violin() +
+  geom_dotplot(binaxis = "y",
+               stackdir = "center",
+               dotsize = 0.1) +
+  labs(y = "average width") +
+  stat_summary(fun = "mean",
+               geom = "crossbar",
+               size = 0.4,
+               color = "grey") +
+  ylim(0, 1) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+gridExtra::grid.arrange(width_similar, width_different)
+
+
