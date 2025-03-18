@@ -1,26 +1,26 @@
 {
-    "id": "F3E86464",
-    "path": "~/horseshoeocc/R/plot.summary.horseshoeocc_derived.R",
-    "project_path": "R/plot.summary.horseshoeocc_derived.R",
+    "id": "F07EF0E4",
+    "path": "~/horseshoeocc/R/fit_horseshoeocc.R",
+    "project_path": "R/fit_horseshoeocc.R",
     "type": "r_source",
-    "hash": "626960788",
+    "hash": "3656285558",
     "contents": "",
     "dirty": false,
-    "created": 1742330557777.0,
+    "created": 1742331123791.0,
     "source_on_save": false,
     "relative_order": 6,
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "160,3",
-        "scrollLine": "113"
+        "cursorPosition": "540,0",
+        "scrollLine": "492"
     },
     "folds": "",
-    "lastKnownWriteTime": 1742331704,
+    "lastKnownWriteTime": 1742319985,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1742331704270,
+    "last_content_update": 1742319985,
     "read_only": false,
     "read_only_alternatives": []
 }

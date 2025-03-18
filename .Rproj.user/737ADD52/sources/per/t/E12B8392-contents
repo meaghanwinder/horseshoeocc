@@ -48,7 +48,8 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
       plot_df <- x %>%
         as.data.frame() %>%
         dplyr::slice(which) %>%
-        dplyr::mutate(var = stringr::str_remove_all(rownames(.), "[:punct:]"))
+        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+")) %>%
+        dplyr::mutate(var = as.numeric(var))
 
       if(hdi == T){
         title =  paste0('95% HDI credibility intervals for ', rownames(plot_df))
@@ -59,7 +60,10 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
       plot_df <- x %>%
         as.data.frame() %>%
         dplyr::filter(stringr::str_detect(rownames(.), which)) %>%
-        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+"))
+        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+")) %>%
+        dplyr::mutate(var = as.numeric(var)) %>%
+        dplyr::mutate(var = dplyr::case_when(is.na(var) ~ 1,
+                                             TRUE ~ var))
 
       if(hdi == T){
         title =  paste0('95% HDI credibility intervals for ', which)
@@ -73,7 +77,8 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
       plot_df <- x %>%
         as.data.frame() %>%
         dplyr::slice(which) %>%
-        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+"))
+        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+")) %>%
+        dplyr::mutate(var = as.numeric(var))
 
       if(hdi == T){
         title =  paste0('95% HDI credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
@@ -86,7 +91,8 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
         dplyr::mutate(param = rownames(.)) %>%
         dplyr::filter(param == which) %>%
         dplyr::select(-param) %>%
-        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+"))
+        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+")) %>%
+        dplyr::mutate(var = as.numeric(var))
 
       if(hdi == T){
         title =  paste0('95% HDI credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
@@ -101,7 +107,8 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
       plot_df <- x %>%
         as.data.frame() %>%
         dplyr::slice(which) %>%
-        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+"))
+        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+")) %>%
+        dplyr::mutate(var = as.numeric(var))
 
       if(hdi == T){
         title =  paste0('95% HDI credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
@@ -114,7 +121,8 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
         dplyr::mutate(param = rownames(.)) %>%
         dplyr::filter(param %in% which) %>%
         dplyr::select(-param) %>%
-        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+"))
+        dplyr::mutate(var = stringr::str_extract(rownames(.), "[:digit:]+")) %>%
+        dplyr::mutate(var = as.numeric(var))
 
       if(hdi == T){
         title =  paste0('95% HDI credibility intervals for ', paste(which, collapse = " and "))
@@ -142,7 +150,6 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
         ggplot2::geom_vline(xintercept = equal, color = "grey")
     }
 
-    return(out)
 
   } else if(hdi == F){
     out <- plot_df %>%
@@ -161,7 +168,6 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
         ggplot2::geom_vline(xintercept = equal, color = "grey")
     }
 
-    return(out)
   }
 
   if(median == T){
@@ -172,4 +178,5 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi 
       ggplot2::geom_point(ggplot2::aes(y = var, x = Mean))
   }
 
+  return(out)
 }

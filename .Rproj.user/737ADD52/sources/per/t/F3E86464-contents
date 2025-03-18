@@ -160,7 +160,5 @@ plot.summary.horseshoeocc_derived <- function(x, which = c("psi"), median = FALS
     }
   }
 
-
-
   return(out)
 }
