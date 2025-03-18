@@ -94,7 +94,11 @@ defaults to 25.}
 \item{mixture_weight2}{the weight of the second component of the mixture prior;
 defaults to 0.5.}
 
-\item{pseudovar}{estimated value for the pseudo-variance; defaults to 4.}
+\item{pseudovar}{estimated value for the pseudo-variance
+\href{https://doi.org/10.1214/17-EJS1337SI}{(Piironen and Vehtari 2017)}; the
+default of 4 corresponds to a proportion of occupied sites of 0.5. Changing
+the value of \eqn{\bar{z}} does not have a meaningful impact on the results, so
+we recommend the default value.}
 
 \item{nchain}{number of Markov chains; defaults to 3.}
 
