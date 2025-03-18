@@ -1,9 +1,10 @@
 #' Trace plots for occupancy model parameters fit using the regularized horseshoe prior
 #'
+#' @description Plot method for objects of class \code{horseshoeocc}.
+#'
 #' @details
 #' You may only select one group of parameters (i.e. \code{"beta"},
 #' \code{"alpha"}, \code{"lambda"}, or \code{"kappa"}) to plot at a time.
-#'
 #'
 #' @param x an object of class \code{horseshoeocc}, typically a result of
 #' a model fit using \code{\link{horseshoeocc}}.

@@ -1,27 +1,26 @@
 {
-    "id": "CF8424C8",
-    "path": "~/horseshoeocc/R/plot.horseshoeocc_derivedsum.R",
-    "project_path": "R/plot.horseshoeocc_derivedsum.R",
+    "id": "FAEE92DB",
+    "path": "~/horseshoeocc/R/fit_horseshoeocc.R",
+    "project_path": "R/fit_horseshoeocc.R",
     "type": "r_source",
     "hash": "0",
     "contents": "",
     "dirty": false,
-    "created": 1742227031365.0,
+    "created": 1742311847499.0,
     "source_on_save": false,
     "relative_order": 7,
     "properties": {
-        "tempName": "Untitled2",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "68,33",
-        "scrollLine": "0"
+        "cursorPosition": "153,2",
+        "scrollLine": "109"
     },
     "folds": "",
-    "lastKnownWriteTime": 1742252723,
+    "lastKnownWriteTime": 1742313786,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1742252723816,
+    "last_content_update": 1742313786432,
     "read_only": false,
     "read_only_alternatives": []
 }

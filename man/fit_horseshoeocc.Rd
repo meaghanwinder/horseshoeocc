@@ -154,7 +154,7 @@ fit <- fit_horseshoeocc(data = sim_data100,
                         mixture_var1 = 1,
                         mixture_mean2 = 3,
                         mixture_var2 = 25,
-                        niter = 1000,
+                        niter = 1000, # small number of iterations to run quickly
                         seed = 123)
 
 

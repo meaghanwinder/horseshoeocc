@@ -19,6 +19,6 @@ Imports:
     dplyr,
     HDInterval,
     magrittr,
-    R2jags (== 0.8-5),
+    R2jags,
     stringr
 RoxygenNote: 7.3.2
