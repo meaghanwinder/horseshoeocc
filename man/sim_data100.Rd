@@ -39,7 +39,7 @@ sim_data100
 A simulated occupancy data set where there are 100 sites with 10 samples
 collected per site. The data set is designed to illustrate the use of the
 regularized horseshoe prior with a mixture prior on the prior guess for the
-effective number of coefficients (\code{p0}).
+number of relevant coefficients (\code{p0}).
 
 This data set includes three true site-level covariates (\code{x1}:\code{x3})
 that influence occupancy probability, along with 97 spurious site-level covariates
