@@ -20,5 +20,6 @@ Imports:
     HDInterval,
     magrittr,
     R2jags,
+    rstan, 
     stringr
 RoxygenNote: 7.3.2

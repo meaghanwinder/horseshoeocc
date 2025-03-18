@@ -10,6 +10,9 @@ the notation used by \href{https://doi.org/10.1214/17-EJS1337SI}{Piironen and Ve
 This package allows the user to specify a prior on the guess for the number
 of relevant coefficients (p0).
 }
+\details{
+Models are fit using JAGS and therefore require a local JAGS installation.
+}
 \seealso{
 Useful links:
 \itemize{
