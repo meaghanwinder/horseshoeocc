@@ -72,7 +72,7 @@ summary.horseshoeocc_derived <- function(object){
               model = object$model,
               opts = object$opts)
 
-  class(out) <- c('summary.horseshoeocc_derived', class(out))
+  class(out) <- c('horseshoeocc_derivedsum', class(out))
 
   return(out)
 }

@@ -1,1 +1,0 @@
-"0","trace_plot(sim_reghs_p025_100, paste0(""lambdat["", sample(1:100, 9), ""]""))"

@@ -1,0 +1,127 @@
+#' Compute derived parameters psi and p
+#'
+#' @description This function computes the derived parameters \code{psi}
+#' and \code{p}, representing the occupancy and detection probabilities respectively.
+#'
+#' @param fit object of class \code{horseshoeocc}.
+#'
+#' @returns An object of class \code{list} containing the elements:
+#' \itemize{
+#'   \item \code{psi} \verb{ }an object of class \code{mcmc} containing the
+#'   derived posterior samples for the occupancy probabilities (\code{psi}).
+#'
+#'   \item \code{p} \verb{ }an object of class \code{mcmc} containing the
+#'   derived posterior samples for the detection probabilities (\code{p}).
+#'
+#'   \item \code{model} \verb{ }object of class \code{list} containing:
+#'     \itemize{
+#'       \item \code{det_model} \verb{ }formula describing the sample-level model.
+#'       \item \code{occ_model} \verb{ }formula describing the site-level model.
+#'     }
+#'
+#'   \item \code{opts} \verb{ } object of class \code{list} containing the MCMC options:
+#'   \code{niter}, \code{nchain}, \code{nburnin}, and \code{thin}.
+#' }
+#'
+#' @examples
+#' # continuing the horseshoeocc example:
+#' fit_derived <- derived_parameters(fit)
+#'
+#' @export
+#'
+
+derived_parameters <- function(fit){
+  # user has the ability to remove using burnin and thin in horseshoeocc()
+  warmup = 0; thin = 1
+
+  mcmc <- fit$mcmc
+  fit_warmup <- lapply(mcmc, function(x) x[(warmup+1):nrow(x),])
+  coda_samples <- coda::as.mcmc.list(lapply(fit_warmup, function(x) coda::as.mcmc(
+    x, start = warmup+1, end = nrow(object), thin = thin
+  )))
+
+  all_samps <- do.call("rbind", coda_samples)
+
+  niter <- nrow(all_samps)
+
+  params <- colnames(all_samps)
+
+  alpha <- colnames(all_samps)[stringr::str_detect(colnames(all_samps), "alpha") &
+                                 !stringr::str_detect(colnames(all_samps), "alpha0")]
+  alpha_samps <- all_samps[, alpha] %>%
+    as.matrix()
+  alpha0_samps <- all_samps[, "alpha0"]
+
+  beta <- colnames(all_samps)[stringr::str_detect(colnames(all_samps), "beta[:punct:]")]
+  beta_samps <- all_samps[, beta]
+  beta0_samps <- all_samps[, "beta0"]
+
+  x <- fit$data$x
+  w <- fit$data$w
+
+  site_df <- fit$data$site_df
+  nsite <- nrow(site_df)
+  site_names <- site_df$site
+
+  samp_df <- fit$data$samp_df
+  nrow_samp_df <- nrow(samp_df)
+  site_samp_names <- interaction(samp_df$site, samp_df$samp)
+
+
+  # calculate occupancy probability estimates and z estimates
+  psi <- list()
+  z <- list()
+
+  for(i in 1:nsite){
+    psi[[i]] <- matrix(NA, nrow = niter, ncol = 1)
+    z[[i]] <- matrix(NA, nrow = niter, ncol = 1)
+    for(j in 1:niter){
+      psi[[i]][j, ] <- invlogit(beta0_samps[j] + x[i, ] %*% beta_samps[j, ])
+      z[[i]][j, ] <- rbinom(1, 1, psi[[i]][j])
+    }
+  }
+
+  # calculate detection probability estimates
+  if(length(alpha) == 0){
+    p <- list()
+
+    for(i in 1:nrow_samp_df){
+      p[[i]] <- matrix(NA, nrow = niter, ncol = 1)
+      for(j in 1:niter){
+        p[[i]][j, ] <- invlogit(alpha0_samps[j])
+
+      }
+    }
+
+  } else if(length(alpha) >= 1){
+    p <- list()
+
+    for(i in 1:nrow_samp_df){
+      p[[i]] <- matrix(NA, nrow = niter, ncol = 1)
+      for(j in 1:niter){
+        p[[i]][j, ] <- invlogit(alpha0_samps[j] + w[i, ] %*% alpha_samps[j, ])
+
+      }
+    }
+  }
+
+
+  psi_wide <- do.call("cbind", psi) %>%
+    coda::mcmc()
+  colnames(psi_wide) <- paste0("psi", site_names)
+
+  p_wide <- do.call("cbind", p) %>%
+    coda::mcmc()
+  colnames(p_wide) <- paste0("p", site_samp_names)
+
+  out <- list(psi = psi_wide,
+              p = p_wide,
+              model = fit$model,
+              opts = fit$opts)
+
+  class(out) <- c('horseshoeocc_derived', class(out))
+
+  return(out)
+}
+
+

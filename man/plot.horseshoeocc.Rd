@@ -20,7 +20,7 @@ for all of the beta coefficients using \code{"beta"}; defaults to \code{"beta"}.
 Returns a ggplot.
 }
 \description{
-Trace plots for occupancy model parameters fit using the regularized horseshoe prior
+Plot method for objects of class \code{horseshoeocc}.
 }
 \details{
 You may only select one group of parameters (i.e. \code{"beta"},

@@ -1,1 +1,0 @@
-"0","trace_plot(sim_reghs_p010_25, c(""beta0"", paste0(""beta["", sample(1:25, 9), ""]"")))"
