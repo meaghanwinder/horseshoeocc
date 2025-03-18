@@ -1,23 +1,40 @@
-#' Title
+#' Credible interval plots for occupancy model derived parameters fit using the regularized horseshoe prior
 #'
-#' @param x tmp
-#' @param which tmp
-#' @param hdi tmp
-#' @param equal tmp
-#' @param ... tmp
+#' @description Plot method for objects of class \code{summary.horseshoeocc_derived}.
 #'
-#' @returns plot
+#' @param x an object of class \code{summary.horseshoeocc_derived}, typically the
+#' result of a call to \code{\link{summary.horseshoeocc_derived}}.
+#' @param which the parameters for which to generate trace plots. The value can
+#' be either \code{"psi"} or \code{"p"}; defaults to \code{"psi"}.
+#' @param hdi logical; defaults to \code{FALSE}. If \code{TRUE}, the highest
+#' (posterior) density intervals (HDI) are plotted.
+#' @param equal optional value to compare to each credibility interval.
+#' @param ... Other arguments.
+#'
+#' @returns A ggplot (if \code{"psi"}) or list of ggplot objects (if \code{"p"}).
+#' The ggplot objects are credible interval plots of the estimated occupancy or
+#' detection probabilities.
+#'
+#' @examples
+#' # continuing the summary.horseshoe_derived example:
+#' ## plot of credibility intervals for psi
+#' plot(derived_summary, "psi")
+#'
+#' ## list of plots of credibility intervals for p
+#' p_plots <- plot(derived_summary, "p")
+#' p_plots[[1]]
+#'
 #' @export
 #'
-plot.horseshoeocc_derivedsum <- function(x, which = c("psi"), hdi = FALSE, equal = NULL, ...){
+plot.summary.horseshoeocc_derived <- function(x, which = c("psi"), hdi = FALSE, equal = NULL, ...){
   psi_sum <- x$psi
   p_sum <- x$p
 
   if(which == "psi"){
     plot_df <- psi_sum %>%
       as.data.frame() %>%
-      mutate(var = stringr::str_extract_all(rownames(.), "[:digit:]+"),
-             var = as.numeric(var))
+      dplyr::mutate(var = stringr::str_extract_all(rownames(.), "[:digit:]+"),
+                    var = as.numeric(var))
     if(hdi == T){
       title =  paste0('95% HDI credibility intervals for ', which)
     } else if(hdi == F){
@@ -66,10 +83,10 @@ plot.horseshoeocc_derivedsum <- function(x, which = c("psi"), hdi = FALSE, equal
   if(which == "p"){
     plot_df <- p_sum %>%
       as.data.frame() %>%
-      mutate(site = stringr::str_extract_all(rownames(.), "[:digit:]+(?=\\.)"),
-             samp = stringr::str_extract_all(rownames(.), "(?<=\\.)[:digit:]+"),
-             site = as.numeric(site),
-             samp = as.numeric(samp))
+      dplyr::mutate(site = stringr::str_extract_all(rownames(.), "[:digit:]+(?=\\.)"),
+                    samp = stringr::str_extract_all(rownames(.), "(?<=\\.)[:digit:]+"),
+                    site = as.numeric(site),
+                    samp = as.numeric(samp))
     xlab = "p"
     out <- list()
     if(hdi == T){
@@ -77,7 +94,7 @@ plot.horseshoeocc_derivedsum <- function(x, which = c("psi"), hdi = FALSE, equal
         title =  paste0('95% HDI credibility intervals for ', which, ' at site ', i)
 
         out[[i]] <- plot_df %>%
-          filter(site == i) %>%
+          dplyr::filter(site == i) %>%
           ggplot2::ggplot() +
           ggplot2::geom_point(ggplot2::aes(x = `HDI 2.5%`, y = samp), shape = "|", size = 3) +
           ggplot2::geom_point(ggplot2::aes(x = `HDI 97.5%`, y = samp), shape = "|", size = 3) +
@@ -99,7 +116,7 @@ plot.horseshoeocc_derivedsum <- function(x, which = c("psi"), hdi = FALSE, equal
         title =  paste0('95% credibility intervals for ', which, ' at site ', i)
 
         out[[i]] <- plot_df %>%
-          filter(site == i) %>%
+          dplyr::filter(site == i) %>%
           ggplot2::ggplot() +
           ggplot2::geom_point(ggplot2::aes(x = `2.5%`, y = samp), shape = "|", size = 3) +
           ggplot2::geom_point(ggplot2::aes(x = `97.5%`, y = samp), shape = "|", size = 3) +

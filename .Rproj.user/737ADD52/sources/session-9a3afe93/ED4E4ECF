@@ -3,7 +3,7 @@
     "path": "~/horseshoeocc/DESCRIPTION",
     "project_path": "DESCRIPTION",
     "type": "dcf",
-    "hash": "2724632499",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1742319554473.0,
@@ -12,7 +12,7 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "5,89",
+        "cursorPosition": "25,18",
         "scrollLine": "0"
     },
     "folds": "",
