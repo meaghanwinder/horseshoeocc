@@ -6,10 +6,9 @@ Authors@R: c(
     person("Meaghan", "Winder", email = "mwinder@middlebury.edu", role = c("aut", "cre"))
     )
 Description:  This package allows for the fitting and summarizing of the
-    occupancy model described by \href{https://doi.org/10.1890/0012-9658(2002)083[2248:ESORWD]2.0.CO;2}{MacKenzie et al. (2002)}
-    using the regularized horseshoe prior described by
-    \href{https://doi.org/10.1214/17-EJS1337SI}{Piironen and Vehtari (2017)} with
-    a prior on \eqn{p0}. 
+    occupancy model described by MacKenzie et al. (2002) using the regularized 
+    horseshoe prior described by Piironen and Vehtari (2017) with
+    a prior on the guess for the number of relevant coefficients (p0). 
 License: None.
 Encoding: UTF-8
 LazyData: true
