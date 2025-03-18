@@ -1,0 +1,1361 @@
+---
+title: "Simulated Data Analysis JAGS code"
+format: html
+---
+
+```{r, eval = F}
+# R2jags - immediately previous version works
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/R2jags/R2jags_0.8-5.tar.gz"
+install.packages(packageurl, repos = NULL, type="source")
+```
+
+
+```{r, message = F, warning = F}
+rm(list = ls())
+library(R2jags);library(tidyverse);library(rstan);library(coda);library(HDInterval)
+jags_summary <- function(fit, warmup = nrow(fit[[1]])/2, thin = 1){
+  # convert to coda for normal summary
+  fit_warmup <- lapply(fit, function(x) x[(warmup+1):nrow(x),])
+  coda_samples <- as.mcmc.list(lapply(fit_warmup, function(x) as.mcmc(
+    x, start = warmup+1, end = nrow(fit), thin = thin
+  )))
+  
+  sum <- summary(coda_samples)
+  params <- dimnames(sum$statistics)[[1]]
+  tmp_sum <- cbind(sum$statistics, sum$quantiles)
+  
+  # get r hat / n_eff
+  mat <- matrix(NA, nrow = nrow(tmp_sum), ncol = 3)
+  colnames(mat) <- c("Rhat", "ess_bulk", "ess_tail")
+  for(i in 1:nrow(tmp_sum)){
+    tmp <- sapply(fit, function(x) x[,i])
+    mat[i,] <- c(Rhat(tmp), ess_bulk(tmp), ess_tail(tmp))
+  }
+  
+  # get hdi interval
+  all_samps <- do.call("rbind", coda_samples)
+  hdi_lower <- apply(all_samps, 2, hdi)[1, ]
+  hdi_upper <- apply(all_samps, 2, hdi)[2, ]
+  
+  # get median
+  median <- apply(all_samps, 2, median)
+  
+  # # get mode
+  # all_samps <- do.call("rbind", coda_samples)
+  # mod <- apply(all_samps, 2, getmode)
+  # prob <- apply(all_samps, 2, mean)
+  
+  # contains 0 
+  contain0 <- tmp_sum[,5]<0 & tmp_sum[,9]>0
+  
+  contain0_hdi <- hdi_lower<0 & hdi_upper>0
+  
+  # out
+  out <- cbind(tmp_sum, 
+               contain0 = contain0, 
+               # mode = mod, prob = prob, 
+               Median = median, 
+               hdi_lower, 
+               hdi_upper,
+               mat)
+  return(out)
+}
+trace_plot <- function(samples, which = c("sigma")){
+  niter <- dim(samples[[1]])[1]
+  nchains <- length(samples)
+  params <- colnames(samples[[1]])
+  
+  combined_samples <- do.call("rbind", samples)
+  combined_samples <- combined_samples %>%
+    as_tibble %>%
+    mutate(iter = rep(1:niter, nchains), chain = factor(rep(1:nchains, each = niter))) %>%
+    dplyr::select(chain, iter, everything()) %>%
+    pivot_longer(cols = -c(1:2), names_to = "param", values_to = "trace")
+  
+  if(all(is.numeric(which))) which <- unique(combined_samples$param)[which]
+  
+  p <- combined_samples %>%
+    filter(param %in% which) %>%
+    ggplot() + 
+    geom_line(aes(x = iter, y = trace, col = chain, group = chain)) +
+    theme_bw() +
+    facet_wrap(~ param, scales = "free_y")
+  
+  return(p)
+  
+}
+convert_to_list <- function(fit){
+  nchains <- fit$BUGSoutput$n.chains
+  nkeep <- fit$BUGSoutput$n.keep
+  array <- fit$BUGSoutput$sims.array
+  
+  out <- list()
+  for(i in 1:(dim(array)[2])) out[[i]] <- array[,i,]
+  return(out)
+}
+
+cred_plot <- function(summary, which = c("beta"), ylim = c(-4, 4)){
+  plot_df <- summary %>%
+    data.frame() %>% 
+    filter(str_detect(rownames(.), "beta")) %>% 
+    filter(rownames(.) != "beta0") %>% 
+    mutate(param = str_extract(rownames(.), "(?<=\\[)[:digit:]+")) %>% 
+    filter(rownames(.) != "beta[1]" & rownames(.) != "beta[2]") %>% 
+    select(param, Median, hdi_lower, hdi_upper)
+  
+  p <- plot_df %>% 
+    ggplot(aes(x = as.numeric(param))) + 
+    # geom_hline(yintercept = 0) + 
+    ylim(ylim[1], ylim[2]) + 
+    geom_linerange(aes(ymin = hdi_lower, ymax = hdi_upper), 
+                   color = "grey", 
+                   linewidth = 1) + 
+    labs(x = "Variable", 
+         y = "") + 
+    geom_point(aes(y = Median)) + 
+    theme_bw()
+  
+  return(p)
+}
+```
+
+## Simulate data based on koala data
+
+```{r}
+library(tidyverse)
+
+logit <- function(p){
+  log(p/(1 - p))
+}
+
+invlogit <- function(x){
+  exp(x)/(1 + exp(x))
+}
+
+set.seed(03012025)
+
+nsite <- 123
+nsamp <- 8
+
+alpha0 <- -0.37 
+alpha <- -2 ## (inclement weather)
+w <- rnorm(nsite*nsamp, 0, 1) %>% 
+  matrix(nrow = nsite*nsamp, ncol = 1) %>% 
+  scale()
+
+det.prob <- invlogit(alpha0 + w %*% alpha)
+
+beta0 <- -0.9 #### change value of intercept based on fitted model 
+
+# 2 true covariates
+beta2 <- c(2, -2) ## (tree cover, road density)
+x2 <- rnorm(123*length(beta2), 0, 1) %>% 
+  matrix(nrow = nsite, ncol = length(beta2)) %>% 
+  scale()
+
+colnames(x2) <- paste0("x", 1:length(beta2))
+
+occ.prob2 <- invlogit(beta0 + x2 %*% beta2)
+
+z2 <- rbinom(nsite, 1, occ.prob2)
+
+site_df2 <- data.frame(site = 1:nsite, 
+                       x2, 
+                       occ.prob2 = occ.prob2,
+                       z2)
+
+samp_df2 <- data.frame(site = rep(1:nsite, each = nsamp), 
+                       samp = rep(1:nsamp, nsite), 
+                       w = w, 
+                       det.prob = det.prob, 
+                       z2 = rep(z2, each = nsamp))
+
+y <- rep(NA, nsite*nsamp)
+
+for(i in 1:nrow(samp_df2)){
+  y[i] <- rbinom(1, 1, samp_df2$det.prob[i] * samp_df2$z2[i])
+}
+
+samp_df2 <- cbind(samp_df2, 
+                  det = y)
+
+na.rows <- c(8,  16,  24,  32,  40,  48,  56,  64,  96, 104, 192, 200, 208, 216, 224, 232, 240, 248, 256, 264, 272, 280, 288, 392, 400, 408, 416, 424, 432, 440, 448, 456, 464, 472, 480, 488, 496, 504, 512, 520, 528, 536, 544, 552, 560, 568, 576, 688, 696, 704, 712, 720, 728, 736, 744, 752, 760, 768, 776, 784, 792, 800, 808, 816, 824, 832, 840, 848, 856, 864, 872, 880, 888)
+
+samp_df2 <- samp_df2[-na.rows, ]
+
+sim_data2 <- list(site_df = site_df2[, c("site", "x1", "x2")],
+                  samp_df = samp_df2[, c("site", "samp", "w", "det")], 
+                  z = z2, 
+                  x = x2,
+                  w = data.frame(w = samp_df2$w),
+                  beta0 = beta0, 
+                  beta = beta2, 
+                  alpha0 = alpha0, 
+                  alpha = alpha)
+
+
+
+
+# 2 true covariates and 8 zero
+beta10 <- c(beta2, rep(0, 8))
+x8 <- rnorm(123*8, 0, 1) %>% 
+  matrix(nrow = nsite, ncol = 8) %>% 
+  scale()
+x10 <- cbind(x2, x8)
+
+colnames(x10) <- paste0("x", 1:length(beta10))
+
+occ.prob10 <- invlogit(beta0 + x10 %*% beta10)
+
+z10 <- rbinom(nsite, 1, occ.prob10)
+
+site_df10 <- data.frame(site = 1:nsite, 
+                        x10, 
+                        occ.prob10 = occ.prob10,
+                        z10)
+
+samp_df10 <- data.frame(site = rep(1:nsite, each = nsamp), 
+                        samp = rep(1:nsamp, nsite),
+                        w = w,
+                        det.prob = det.prob, 
+                        z10 = rep(z10, each = nsamp))
+
+y <- rep(NA, nsite*nsamp)
+
+for(i in 1:nrow(samp_df10)){
+  y[i] <- rbinom(1, 1, samp_df10$det.prob[i] * samp_df10$z10[i])
+}
+
+samp_df10 <- cbind(samp_df10, 
+                   det = y)
+
+samp_df10 <- samp_df10[-na.rows, ]
+
+sim_data10 <- list(site_df = site_df10[, c("site", paste0("x", 1:10))],
+                   samp_df = samp_df10[, c("site", "samp", "w", "det")], 
+                   z = z10,
+                   x = x10, 
+                   w = data.frame(w = samp_df10$w),
+                   beta0 = beta0, 
+                   beta = beta10, 
+                   alpha0 = alpha0, 
+                   alpha = alpha)
+
+
+
+
+# 2 true covariates and 98 zero
+beta100 <- c(beta2, rep(0, 98))
+x98 <- rnorm(123*98, 0, 1) %>% 
+  matrix(nrow = nsite, ncol = 98) %>% 
+  scale()
+x100 <- cbind(x2, x98)
+
+colnames(x100) <- paste0("x", 1:length(beta100))
+
+occ.prob100 <- invlogit(beta0 + x100 %*% beta100)
+
+z100 <- rbinom(nsite, 1, occ.prob100)
+
+site_df100 <- data.frame(site = 1:nsite, 
+                         x100, 
+                         occ.prob100 = occ.prob100,
+                         z100)
+
+samp_df100 <- data.frame(site = rep(1:nsite, each = nsamp), 
+                         samp = rep(1:nsamp, nsite),
+                         w = w,
+                         det.prob = det.prob, 
+                         z100 = rep(z100, each = nsamp))
+
+y <- rep(NA, nsite*nsamp)
+
+for(i in 1:nrow(samp_df100)){
+  y[i] <- rbinom(1, 1, samp_df100$det.prob[i] * samp_df100$z100[i])
+}
+
+samp_df100 <- cbind(samp_df100, 
+                    det = y)
+
+samp_df100 <- samp_df100[-na.rows, ]
+
+sim_data100 <- list(site_df = site_df100[, c("site", paste0("x", 1:100))],
+                    samp_df = samp_df100[, c("site", "samp", "w", "det")], 
+                    z = z100, 
+                    x = x100, 
+                    w = data.frame(w = samp_df100$w), 
+                    beta0 = beta0, 
+                    beta = beta10, 
+                    alpha0 = alpha0, 
+                    alpha = alpha)
+```
+
+## Fit the model with the two original covariates
+
+```{r, eval = T}
+# fit occupancy model in jags
+occ_mod <- function(){
+  # likelihood
+  for(i in 1:nrow_site_df){
+    logit(psi[i]) <- beta0 + inprod(beta[1:D], x[i, 1:D])
+    z[i] ~ dbern(psi[i])
+  }
+  
+  for(j in 1:nrow_samp_df){
+    logit(p[j]) <- alpha0 + inprod(alpha[1], w[j, 1])
+    y[j] ~ dbern(p[j]*z[site_season_ndx[j]])
+  }
+  
+  # priors
+  beta0 ~ dnorm(0, 1/2) # intercept
+  for(i in 1:D){beta[i] ~ dnorm(0, 1/2)}
+  alpha0 ~ dnorm(0, 1/2) # intercept
+  alpha ~ dnorm(0, 1/2) # single slope coefficient for weather
+}
+
+# generate some inits
+set.seed(03012025)
+occ_init <- function(){
+  list(
+    alpha0 = 0,
+    alpha = 0,
+    beta0 = 0,
+    beta = rep(0, 2),
+    z = rep(1, 123)
+  )
+}
+
+
+fit <- jags.parallel(
+  model.file = occ_mod,
+  n.chains = 3,
+  inits = occ_init,
+  data = list(
+    nsite = nrow(sim_data2$site_df),
+    D = ncol(sim_data2$x),
+    x = sim_data2$x,
+    w = sim_data2$w, 
+    nrow_site_df = nrow(sim_data2$site_df), 
+    nrow_samp_df = nrow(sim_data2$samp_df), 
+    site_season_ndx = sim_data2$samp_df$site,
+    y = sim_data2$samp_df$det
+  ),
+  n.iter = 50000,
+  n.burnin = 25000,
+  n.thin = 1,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_occ.rds")
+```
+
+```{r, fig.width = 12, fig.height = 4}
+sim_occ <- readRDS("sim_occ.rds")
+trace_plot(sim_occ, c("beta0", "beta[1]", "beta[2]"))
+sim_occ_sum <- jags_summary(sim_occ, warmup = 0)
+```
+
+## Fit occupancy model with no horseshoe for 10 potential covariates
+
+```{r, eval = T}
+# generate some inits
+set.seed(03012025)
+occ_init10 <- function(){
+  list(
+    alpha0 = 0,
+    alpha = 0,
+    beta0 = 0,
+    beta = rep(0, 10),
+    z = rep(1, 123)
+  )
+}
+
+
+fit <- jags.parallel(
+  model.file = occ_mod,
+  n.chains = 3,
+  inits = occ_init10,
+  data = list(
+    nsite = nrow(sim_data10$site_df),
+    D = ncol(sim_data10$x),
+    x = sim_data10$x,
+    w = sim_data10$w, 
+    nrow_site_df = nrow(sim_data10$site_df), 
+    nrow_samp_df = nrow(sim_data10$samp_df), 
+    site_season_ndx = sim_data10$samp_df$site,
+    y = sim_data10$samp_df$det
+  ),
+  n.iter = 50000,
+  n.burnin = 25000,
+  n.thin = 1,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_occ10.rds")
+```
+
+```{r, fig.width = 12, fig.height = 4}
+sim_occ10 <- readRDS("sim_occ10.rds")
+trace_plot(sim_occ10, c("beta0", paste0("beta[", 1:10, "]")))
+sim_occ_sum10 <- jags_summary(sim_occ10, warmup = 0)
+
+cred_plot(sim_occ_sum10, ylim = c(-2, 2))
+
+# number of 95% credible intervals for the betas that do not contain 0: 3
+```
+
+## Fit occupancy model with no horseshoe for 100 potential covariates
+
+```{r, eval = T}
+# generate some inits
+set.seed(03012025)
+occ_init100 <- function(){
+  list(
+    alpha0 = 0,
+    alpha = 0,
+    beta0 = 0,
+    beta = rep(0, 100),
+    z = rep(1, 123)
+  )
+}
+
+
+fit <- jags.parallel(
+  model.file = occ_mod,
+  n.chains = 3,
+  inits = occ_init100,
+  data = list(
+    nsite = nrow(sim_data100$site_df),
+    D = ncol(sim_data100$x),
+    x = sim_data100$x,
+    w = sim_data100$w, 
+    nrow_site_df = nrow(sim_data100$site_df), 
+    nrow_samp_df = nrow(sim_data100$samp_df), 
+    site_season_ndx = sim_data100$samp_df$site,
+    y = sim_data100$samp_df$det
+  ),
+  n.iter = 50000,
+  n.burnin = 25000,
+  n.thin = 1,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_occ100.rds")
+```
+
+```{r, fig.width = 12, fig.height = 4}
+sim_occ100 <- readRDS("sim_occ100.rds")
+trace_plot(sim_occ100, c("beta0", "beta[1]", "beta[2]", paste0("beta[", sample(3:100, 9), "]")))
+sim_occ_sum100 <- jags_summary(sim_occ100, warmup = 0)
+
+cred_plot(sim_occ_sum100, ylim = c(-5, 5))
+
+# number of 95% credible intervals for the betas that do not contain 0: 3
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, 1)$ with 10 potential covariates 
+
+```{r, eval = T}
+reg_hs <- function(){
+  # likelihood
+  for(i in 1:nrow_site_df){
+    logit(psi[i]) <- beta0 + inprod(beta[1:D], x[i, 1:D])
+    z[i] ~ dbern(psi[i])
+  }
+  
+  for(j in 1:nrow_samp_df){
+    logit(p[j]) <- alpha0 + inprod(alpha[1], w[j, 1])
+    y[j] ~ dbern(p[j]*z[site_season_ndx[j]])
+  }
+  
+  # priors
+  beta0 ~ dnorm(0, 1/2) # intercept
+  alpha0 ~ dnorm(0, 1/2) # intercept
+  alpha ~ dnorm(0, 1/2) # single slope for weather 
+  
+  tau ~ dt(0, 1/1, 1);T(0,) # global shrinkage
+  tau2 <- tau*tau
+  c2.rep ~ dgamma(df.slab/2, scale.slab^2*df.slab/2) 
+  c2 <- 1/c2.rep
+  
+  for(j in 1:D){
+    lambda[j] ~ dt(0, 1, 1);T(0,)
+    lambda2[j] <- lambda[j]*lambda[j]
+    lambdat[j] <- (c2 * lambda2[j])/(c2 + tau2 * lambda2[j])
+    lambda2t[j] <- lambdat[j] * lambdat[j]
+    beta[j] ~ dnorm(0, 1/(tau2 * lambda2t[j]))
+  }
+  
+  # calculate shrinkage factor
+  b <- 1/(1 + nrow_site_df * 1/pseudovar * c2)
+  
+  for(j in 1:D){
+    kappa[j] <- 1/(1 + nrow_site_df * 1/pseudovar * tau2 * 1 * lambda2t[j])  
+    kappat[j] <- (1-b)*kappa[j] + b
+  }
+  meff <- sum(1 - kappa[1:D])
+  mefft <- (1-b)*meff
+}
+
+# generate some inits
+set.seed(03012025)
+init_hs10 <- function(){
+  list(
+    alpha0 = 0,
+    alpha = 0,
+    beta0 = 0,
+    beta = rep(0, 10),
+    lambda = rep(1, 10),
+    tau = .05,
+    c2.rep = 1, 
+    z = rep(1, 123)
+  )
+}
+
+
+fit <- jags.parallel(
+  model.file = reg_hs,
+  n.chains = 3,
+  inits = init_hs10,
+  data = list(
+    nsite = nrow(sim_data10$site_df),
+    D = ncol(sim_data10$x),
+    x = sim_data10$x,
+    w = sim_data10$w, 
+    nrow_site_df = nrow(sim_data10$site_df), 
+    nrow_samp_df = nrow(sim_data10$samp_df), 
+    site_season_ndx = sim_data10$samp_df$site,
+    y = sim_data10$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2,
+    pseudovar = 4
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_10.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_10 <- readRDS("sim_reghs_10.rds")
+trace_plot(sim_reghs_10, "tau")
+trace_plot(sim_reghs_10, paste0("lambdat[", 1:10, "]"))
+trace_plot(sim_reghs_10, c("beta0", paste0("beta[", 1:10, "]")))
+sim_reghs_sum10 <- jags_summary(sim_reghs_10, warmup = 0)
+
+cred_plot(sim_reghs_sum10, ylim = c(-1, 1))
+
+# meff: 6.89 (3.71, 9.09)
+# number of 95% credible intervals for the betas that do not contain 0: 2 
+
+# kappa_ <- sim_reghs_sum10[rownames(sim_reghs_sum10) %>% str_detect("kappa") %>% which(), "Mean"]
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, 1)$ with 100 potential covariates 
+
+```{r, eval = T}
+# generate some inits
+set.seed(03012025)
+init_hs100 <- function(){
+  list(
+    alpha0 = 0,
+    alpha = 0,
+    beta0 = 0,
+    beta = rep(0, 100),
+    lambda = rep(1, 100),
+    tau = .05,
+    c2.rep = 1, 
+    z = rep(1, 123)
+  )
+}
+
+
+fit <- jags.parallel(
+  model.file = reg_hs,
+  n.chains = 3,
+  inits = init_hs100,
+  data = list(
+    nsite = nrow(sim_data100$site_df),
+    D = ncol(sim_data100$x),
+    x = sim_data100$x,
+    w = sim_data100$w, 
+    nrow_site_df = nrow(sim_data100$site_df), 
+    nrow_samp_df = nrow(sim_data100$samp_df), 
+    site_season_ndx = sim_data100$samp_df$site,
+    y = sim_data100$samp_df$y,
+    df.slab = 4,
+    scale.slab = 2, 
+    pseudovar = 4
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_100.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_100 <- readRDS("sim_reghs_100.rds")
+trace_plot(sim_reghs_100, "tau")
+trace_plot(sim_reghs_100, paste0("lambdat[", sample(1:50, 9), "]"))
+trace_plot(sim_reghs_100, c("beta0", "beta[1]", "beta[2]", paste0("beta[", sample(3:50, 9), "]")))
+sim_reghs_sum100 <- jags_summary(sim_reghs_100, warmup = 0)
+
+cred_plot(sim_reghs_sum100, ylim = c(-1.5, 1.5))
+
+# meff:  8.64 (2.88, 18.26)
+# number of 95% credible intervals for the betas that do not contain 0: 2 
+
+# kappa_ <- sim_reghs_sum100[rownames(sim_reghs_sum100) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 100 potential covariates and $p_0 = 2$
+
+```{r, eval = T}
+reg_hs_tau0 <- function(){
+  # likelihood
+  for(i in 1:nrow_site_df){
+    logit(psi[i]) <- beta0 + inprod(beta[1:D], x[i, 1:D])
+    z[i] ~ dbern(psi[i])
+  }
+  
+  for(j in 1:nrow_samp_df){
+    logit(p[j]) <- alpha0 + inprod(alpha[1], w[j, 1])
+    y[j] ~ dbern(p[j]*z[site_season_ndx[j]])
+  }
+  
+  # compute quantities for hyper prior on tau
+  tau0 <- p0/(D-p0) * sqrtpseudovar / (sqrtnsite)
+  tau02 <- tau0 * tau0
+  
+  # priors
+  beta0 ~ dnorm(0, 1/2) # intercept
+  alpha0 ~ dnorm(0, 1/2) # intercept
+  alpha ~ dnorm(0, 1/2) # single slope for weather 
+  
+  tau ~ dt(0, 1/tau02, 1);T(0,) # global shrinkage
+  tau2 <- tau*tau
+  c2.rep ~ dgamma(df.slab/2, scale.slab^2*df.slab/2) 
+  c2 <- 1/c2.rep
+  
+  for(j in 1:D){
+    lambda[j] ~ dt(0, 1, 1);T(0,)
+    lambda2[j] <- lambda[j]*lambda[j]
+    lambdat[j] <- (c2 * lambda2[j])/(c2 + tau2 * lambda2[j])
+    lambda2t[j] <- lambdat[j] * lambdat[j]
+    beta[j] ~ dnorm(0, 1/(tau2 * lambda2t[j]))
+  }
+  
+  # calculate shrinkage factor
+  b <- 1/(1 + nrow_site_df * 1/pseudovar * c2)
+  
+  for(j in 1:D){
+    kappa[j] <- 1/(1 + nrow_site_df * 1/pseudovar * tau2 * 1 * lambda2t[j])  
+    kappat[j] <- (1-b)*kappa[j] + b
+  }
+  meff <- sum(1 - kappa[1:D])
+  mefft <- (1-b)*meff
+}
+
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0,
+  n.chains = 3,
+  inits = init_hs100,
+  data = list(
+    nsite = nrow(sim_data100$site_df),
+    D = ncol(sim_data100$x),
+    x = sim_data100$x,
+    w = sim_data100$w, 
+    nrow_site_df = nrow(sim_data100$site_df), 
+    nrow_samp_df = nrow(sim_data100$samp_df), 
+    site_season_ndx = sim_data100$samp_df$site,
+    y = sim_data100$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0 = 2,
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data100$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_p02_100.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_p02_100 <- readRDS("sim_reghs_p02_100.rds")
+trace_plot(sim_reghs_p02_100, "tau")
+trace_plot(sim_reghs_p02_100, paste0("lambdat[", sample(1:100, 9), "]"))
+trace_plot(sim_reghs_p02_100, c("beta0", "beta[1]", "beta[2]", paste0("beta[", sample(3:100, 9), "]")))
+sim_reghs_p02_sum100 <- jags_summary(sim_reghs_p02_100, warmup = 0)
+
+cred_plot(sim_reghs_p02_sum100, ylim = c(-1, 1))
+
+# meff:  6.72 (2.53, 13.53)
+# number of 95% credible intervals for the betas that do not contain 0:  
+
+# kappa_ <- sim_reghs_p02_sum100[rownames(sim_reghs_p02_sum100) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 100 potential covariates and $p_0 = 10$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0,
+  n.chains = 3,
+  inits = init_hs100,
+  data = list(
+    nsite = nrow(sim_data100$site_df),
+    D = ncol(sim_data100$x),
+    x = sim_data100$x,
+    w = sim_data100$w, 
+    nrow_site_df = nrow(sim_data100$site_df), 
+    nrow_samp_df = nrow(sim_data100$samp_df), 
+    site_season_ndx = sim_data100$samp_df$site,
+    y = sim_data100$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0 = 10,
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data100$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_p010_100.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_p010_100 <- readRDS("sim_reghs_p010_100.rds")
+trace_plot(sim_reghs_p010_100, "tau")
+trace_plot(sim_reghs_p010_100, paste0("lambdat[", sample(1:100, 9), "]"))
+trace_plot(sim_reghs_p010_100, c("beta0", "beta[1]", "beta[2]", paste0("beta[", sample(3:100, 9), "]")))
+sim_reghs_p010_sum100 <- jags_summary(sim_reghs_p010_100, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0: 
+
+# kappa_ <- sim_reghs_p010_sum100[rownames(sim_reghs_p010_sum100) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 100 potential covariates and $p_0 = 25$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0,
+  n.chains = 3,
+  inits = init_hs100,
+  data = list(
+    nsite = nrow(sim_data100$site_df),
+    D = ncol(sim_data100$x),
+    x = sim_data100$x,
+    w = sim_data100$w, 
+    nrow_site_df = nrow(sim_data100$site_df), 
+    nrow_samp_df = nrow(sim_data100$samp_df), 
+    site_season_ndx = sim_data100$samp_df$site,
+    y = sim_data100$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0 = 25,
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data100$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_p025_100.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_p025_100 <- readRDS("sim_reghs_p025_100.rds")
+trace_plot(sim_reghs_p025_100, "tau")
+trace_plot(sim_reghs_p025_100, paste0("lambdat[", sample(1:100, 9), "]"))
+trace_plot(sim_reghs_p025_100, c("beta0", "beta[1]", "beta[2]", paste0("beta[", sample(3:100, 9), "]")))
+sim_reghs_p025_sum100 <- jags_summary(sim_reghs_p025_100, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0: 
+
+# kappa_ <- sim_reghs_p025_sum100[rownames(sim_reghs_p025_sum100) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 10 potential covariates and $p_0 = 2$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0,
+  n.chains = 3,
+  inits = init_hs10,
+  data = list(
+    nsite = nrow(sim_data10$site_df),
+    D = ncol(sim_data10$x),
+    x = sim_data10$x,
+    w = sim_data10$w, 
+    nrow_site_df = nrow(sim_data10$site_df), 
+    nrow_samp_df = nrow(sim_data10$samp_df), 
+    site_season_ndx = sim_data10$samp_df$site,
+    y = sim_data10$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0 = 2,
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data10$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_p02_10.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_p02_10 <- readRDS("sim_reghs_p02_10.rds")
+trace_plot(sim_reghs_p02_10, "tau")
+trace_plot(sim_reghs_p02_10, paste0("lambdat[", 1:10, "]"))
+trace_plot(sim_reghs_p02_10, paste0("beta[", 1:10, "]"))
+sim_reghs_p02_sum10 <- jags_summary(sim_reghs_p02_10, warmup = 0)
+
+cred_plot(sim_reghs_p02_sum10, ylim = c(-1, 1))
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0: 
+
+# kappa_ <- sim_reghs_p02_sum10[rownames(sim_reghs_p02_sum10) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 10 potential covariates and $p_0 = 5$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0,
+  n.chains = 3,
+  inits = init_hs10,
+  data = list(
+    nsite = nrow(sim_data10$site_df),
+    D = ncol(sim_data10$x),
+    x = sim_data10$x,
+    w = sim_data10$w, 
+    nrow_site_df = nrow(sim_data10$site_df), 
+    nrow_samp_df = nrow(sim_data10$samp_df), 
+    site_season_ndx = sim_data10$samp_df$site,
+    y = sim_data10$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0 = 5,
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data10$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_p05_10.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_p05_10 <- readRDS("sim_reghs_p05_10.rds")
+trace_plot(sim_reghs_p05_10, "tau")
+trace_plot(sim_reghs_p05_10, paste0("lambdat[", 1:10, "]"))
+trace_plot(sim_reghs_p05_10, paste0("beta[", 1:10, "]"))
+sim_reghs_p05_sum10 <- jags_summary(sim_reghs_p05_10, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0: 
+
+# kappa_ <- sim_reghs_p05_sum10[rownames(sim_reghs_p05_sum10) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 10 potential covariates and $p_0 = 8$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0,
+  n.chains = 3,
+  inits = init_hs10,
+  data = list(
+    nsite = nrow(sim_data10$site_df),
+    D = ncol(sim_data10$x),
+    x = sim_data10$x,
+    w = sim_data10$w, 
+    nrow_site_df = nrow(sim_data10$site_df), 
+    nrow_samp_df = nrow(sim_data10$samp_df), 
+    site_season_ndx = sim_data10$samp_df$site,
+    y = sim_data10$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0 = 8,
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data10$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_p08_10.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_p08_10 <- readRDS("sim_reghs_p08_10.rds")
+trace_plot(sim_reghs_p08_10, "tau")
+trace_plot(sim_reghs_p08_10, paste0("lambdat[", 1:10, "]"))
+trace_plot(sim_reghs_p08_10, paste0("beta[", 1:10, "]"))
+sim_reghs_p08_sum10 <- jags_summary(sim_reghs_p08_10, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0: 
+
+# kappa_ <- sim_reghs_p08_sum10[rownames(sim_reghs_p08_sum10) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 100 potential covariates and with a mixture prior for $p_0$
+## mixture of truncated normals centered at a guess of $p_0 = 2$
+
+```{r, eval = T}
+set.seed(03012025)
+
+reg_hs_tau0_p0prior <- function(){
+  # likelihood
+  for(i in 1:nrow_site_df){
+    logit(psi[i]) <- beta0 + inprod(beta[1:D], x[i, 1:D])
+    z[i] ~ dbern(psi[i])
+  }
+  
+  for(j in 1:nrow_samp_df){
+    logit(p[j]) <- alpha0 + inprod(alpha[1], w[j, 1])
+    y[j] ~ dbern(p[j]*z[site_season_ndx[j]])
+  }
+  
+  ## p0_mixture prior 
+  inform_p0 ~ dnorm(p0_guess, 1/var_inform);T(1, D-1)
+  flat_p0 ~ dnorm(p0_guess, 1/var_flat);T(1, D-1)
+  p0 <- 0.5*inform_p0 + 0.5*flat_p0
+  
+  # compute quantities for hyper prior on tau
+  tau0 <- p0/(D-p0) * sqrtpseudovar / (sqrtnsite)
+  tau02 <- tau0 * tau0
+  
+  # priors
+  beta0 ~ dnorm(0, 1/2) # intercept
+  alpha0 ~ dnorm(0, 1/2) # intercept
+  alpha ~ dnorm(0, 1/2) # single slope for weather 
+  
+  tau ~ dt(0, 1/tau02, 1);T(0,) # global shrinkage
+  tau2 <- tau*tau
+  c2.rep ~ dgamma(df.slab/2, scale.slab^2*df.slab/2) 
+  c2 <- 1/c2.rep
+  
+  for(j in 1:D){
+    lambda[j] ~ dt(0, 1, 1);T(0,)
+    lambda2[j] <- lambda[j]*lambda[j]
+    lambdat[j] <- (c2 * lambda2[j])/(c2 + tau2 * lambda2[j])
+    lambda2t[j] <- lambdat[j] * lambdat[j]
+    beta[j] ~ dnorm(0, 1/(tau2 * lambda2t[j]))
+  }
+  
+  # calculate shrinkage factor
+  b <- 1/(1 + nrow_site_df * 1/pseudovar * c2)
+  
+  for(j in 1:D){
+    kappa[j] <- 1/(1 + nrow_site_df * 1/pseudovar * tau2 * 1 * lambda2t[j])  
+    kappat[j] <- (1-b)*kappa[j] + b
+  }
+  meff <- sum(1 - kappa[1:D])
+  mefft <- (1-b)*meff
+}
+
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0_p0prior,
+  n.chains = 3,
+  inits = init_hs100,
+  data = list(
+    nsite = nrow(sim_data100$site_df),
+    D = ncol(sim_data100$x),
+    x = sim_data100$x,
+    w = sim_data100$w, 
+    nrow_site_df = nrow(sim_data100$site_df), 
+    nrow_samp_df = nrow(sim_data100$samp_df), 
+    site_season_ndx = sim_data100$samp_df$site,
+    y = sim_data100$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0_guess = 2,
+    var_inform = 1, 
+    var_flat = 100, 
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data100$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_mixture2_100.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_mixture2_100 <- readRDS("sim_reghs_mixture2_100.rds")
+trace_plot(sim_reghs_mixture2_100, "tau")
+trace_plot(sim_reghs_mixture2_100, paste0("lambdat[", sample(1:100, 9), "]"))
+trace_plot(sim_reghs_mixture2_100, c("beta0", "beta[1]", "beta[2]", paste0("beta[", sample(3:100, 9), "]")))
+sim_reghs_mixture2_sum100 <- jags_summary(sim_reghs_mixture2_100, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0: 
+
+# kappa_ <- sim_reghs_mixture2_sum100[rownames(sim_reghs_mixture2_sum100) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 100 potential covariates and with a mixture prior for $p_0$
+## mixture of truncated normals centered at a guess of $p_0 = 10$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0_p0prior,
+  n.chains = 3,
+  inits = init_hs100,
+  data = list(
+    nsite = nrow(sim_data100$site_df),
+    D = ncol(sim_data100$x),
+    x = sim_data100$x,
+    w = sim_data100$w, 
+    nrow_site_df = nrow(sim_data100$site_df), 
+    nrow_samp_df = nrow(sim_data100$samp_df), 
+    site_season_ndx = sim_data100$samp_df$site,
+    y = sim_data100$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0_guess = 10,
+    var_inform = 1, 
+    var_flat = 100, 
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data100$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_mixture10_100.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_mixture10_100 <- readRDS("sim_reghs_mixture10_100.rds")
+trace_plot(sim_reghs_mixture10_100, "tau")
+trace_plot(sim_reghs_mixture10_100, paste0("lambdat[", sample(1:100, 9), "]"))
+trace_plot(sim_reghs_mixture10_100, c("beta0", "beta[1]", "beta[2]", paste0("beta[", sample(3:100, 9), "]")))
+sim_reghs_mixture10_sum100 <- jags_summary(sim_reghs_mixture10_100, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0: 
+
+# kappa_ <- sim_reghs_mixture10_sum100[rownames(sim_reghs_mixture10_sum100) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 100 potential covariates and with a mixture prior for $p_0$
+## mixture of truncated normals centered at a guess of $p_0 = 25$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0_p0prior,
+  n.chains = 3,
+  inits = init_hs100,
+  data = list(
+    nsite = nrow(sim_data100$site_df),
+    D = ncol(sim_data100$x),
+    x = sim_data100$x,
+    w = sim_data100$w, 
+    nrow_site_df = nrow(sim_data100$site_df), 
+    nrow_samp_df = nrow(sim_data100$samp_df), 
+    site_season_ndx = sim_data100$samp_df$site,
+    y = sim_data100$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0_guess = 25,
+    var_inform = 1, 
+    var_flat = 100, 
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data100$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_mixture25_100.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_mixture25_100 <- readRDS("sim_reghs_mixture25_100.rds")
+trace_plot(sim_reghs_mixture25_100, "tau")
+trace_plot(sim_reghs_mixture25_100, paste0("lambdat[", sample(1:100, 9), "]"))
+trace_plot(sim_reghs_mixture25_100, c("beta0", "beta[1]", "beta[2]", paste0("beta[", sample(3:100, 9), "]")))
+sim_reghs_mixture25_sum100 <- jags_summary(sim_reghs_mixture25_100, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0:
+
+# kappa_ <- sim_reghs_mixture25_sum100[rownames(sim_reghs_mixture25_sum100) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 10 potential covariates and with a mixture prior for $p_0$
+## mixture of truncated normals centered at a guess of $p_0 = 2$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0_p0prior,
+  n.chains = 3,
+  inits = init_hs10,
+  data = list(
+    nsite = nrow(sim_data10$site_df),
+    D = ncol(sim_data10$x),
+    x = sim_data10$x,
+    w = sim_data10$w, 
+    nrow_site_df = nrow(sim_data10$site_df), 
+    nrow_samp_df = nrow(sim_data10$samp_df), 
+    site_season_ndx = sim_data10$samp_df$site,
+    y = sim_data10$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0_guess = 2,
+    var_inform = 1, 
+    var_flat = 100, 
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data10$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_mixture2_10.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_mixture2_10 <- readRDS("sim_reghs_mixture2_10.rds")
+trace_plot(sim_reghs_mixture2_10, "tau")
+trace_plot(sim_reghs_mixture2_10, paste0("lambdat[", 1:10, "]"))
+trace_plot(sim_reghs_mixture2_10, c("beta0", "beta[1]", "beta[2]", paste0("beta[", 3:10, "]")))
+sim_reghs_mixture2_sum10 <- jags_summary(sim_reghs_mixture2_10, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0:
+
+# kappa_ <- sim_reghs_mixture2_sum10[rownames(sim_reghs_mixture2_sum10) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 10 potential covariates and with a mixture prior for $p_0$
+## mixture of truncated normals centered at a guess of $p_0 = 5$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0_p0prior,
+  n.chains = 3,
+  inits = init_hs10,
+  data = list(
+    nsite = nrow(sim_data10$site_df),
+    D = ncol(sim_data10$x),
+    x = sim_data10$x,
+    w = sim_data10$w, 
+    nrow_site_df = nrow(sim_data10$site_df), 
+    nrow_samp_df = nrow(sim_data10$samp_df), 
+    site_season_ndx = sim_data10$samp_df$site,
+    y = sim_data10$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0_guess = 5,
+    var_inform = 1, 
+    var_flat = 100, 
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data10$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_mixture5_10.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_mixture5_10 <- readRDS("sim_reghs_mixture5_10.rds")
+trace_plot(sim_reghs_mixture5_10, "tau")
+trace_plot(sim_reghs_mixture5_10, paste0("lambdat[", 1:10, "]"))
+trace_plot(sim_reghs_mixture5_10, c("beta0", "beta[1]", "beta[2]", paste0("beta[", 3:10, "]")))
+sim_reghs_mixture5_sum10 <- jags_summary(sim_reghs_mixture5_10, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0:
+
+# kappa_ <- sim_reghs_mixture5_sum10[rownames(sim_reghs_mixture5_sum10) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+## Fit regularized horseshoe with $\tau \sim C^+(0, \tau_0)$ with 100 potential covariates and with a mixture prior for $p_0$
+## mixture of truncated normals centered at a guess of $p_0 = 8$
+
+```{r, eval = T}
+set.seed(03012025)
+
+fit <- jags.parallel(
+  model.file = reg_hs_tau0_p0prior,
+  n.chains = 3,
+  inits = init_hs10,
+  data = list(
+    nsite = nrow(sim_data10$site_df),
+    D = ncol(sim_data10$x),
+    x = sim_data10$x,
+    w = sim_data10$w, 
+    nrow_site_df = nrow(sim_data10$site_df), 
+    nrow_samp_df = nrow(sim_data10$samp_df), 
+    site_season_ndx = sim_data10$samp_df$site,
+    y = sim_data10$samp_df$det,
+    df.slab = 4,
+    scale.slab = 2, 
+    p0_guess = 8,
+    var_inform = 1, 
+    var_flat = 100, 
+    sqrtpseudovar = sqrt(4),
+    pseudovar = 4, 
+    sqrtnsite = sqrt(nrow(sim_data10$site_df))
+  ),
+  n.iter = 250000,
+  n.burnin = 125000,
+  n.thin = 5,
+  parameters.to.save = c("alpha0", "alpha", "beta0", "beta", "tau", "lambdat", "kappat", "mefft"),
+  jags.seed = 1,
+  jags.module = c("glm")
+)
+
+saveRDS(convert_to_list(fit), file = "sim_reghs_mixture8_10.rds")
+```
+
+```{r, fig.width = 12, fig.height = 8}
+sim_reghs_mixture8_10 <- readRDS("sim_reghs_mixture8_10.rds")
+trace_plot(sim_reghs_mixture8_10, "tau")
+trace_plot(sim_reghs_mixture8_10, paste0("lambdat[", 1:10, "]"))
+trace_plot(sim_reghs_mixture8_10, c("beta0", "beta[1]", "beta[2]", paste0("beta[", 3:10, "]")))
+sim_reghs_mixture8_sum10 <- jags_summary(sim_reghs_mixture8_10, warmup = 0)
+
+# meff:  (, )
+# number of 95% credible intervals for the betas that do not contain 0:
+
+# kappa_ <- sim_reghs_mixture8_sum10[rownames(sim_reghs_mixture8_sum10) %>% str_detect("kappa") %>% which(), "Mean"] 
+# 
+# sum(kappa_ < 0.5)
+```
+
+

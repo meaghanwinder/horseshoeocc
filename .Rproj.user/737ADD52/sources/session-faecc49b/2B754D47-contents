@@ -1,0 +1,51 @@
+#' Title
+#'
+#' @param object
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+#'
+summary.horseshoeocc_derived <- function(object){
+  # occupancy probability summary
+  psi <- object$psi
+
+  sum_psi <- summary(psi)
+  tmp_psi <- cbind(sum_psi$statistics[, 1:2], sum_psi$quantiles)
+
+  hdi_2.5 <- apply(psi, 2, hdi)[1, ]
+  hdi_97.5 <- apply(psi, 2, hdi)[2, ]
+
+  # get median
+  median <- apply(psi, 2, median)
+
+  psi_summary <- cbind(tmp_psi,
+                       Median = median,
+                       "HDI 2.5%" = hdi_2.5,
+                       "HDI 97.5%" = hdi_97.5)
+
+  # detection probability summary
+  p <- object$p
+
+  sum_p <- summary(p)
+  tmp_p <- cbind(sum_p$statistics[, 1:2], sum_p$quantiles)
+
+  hdi_2.5 <- apply(p, 2, hdi)[1, ]
+  hdi_97.5 <- apply(p, 2, hdi)[2, ]
+
+  # get median
+  median <- apply(p, 2, median)
+
+  p_summary <- cbind(tmp_p,
+                     Median = median,
+                     "HDI 2.5%" = hdi_2.5,
+                     "HDI 97.5%" = hdi_97.5)
+
+  out <- list(psi = psi_summary,
+              p = p_summary)
+
+  class(out) <- c('horseshoeocc_derivedsum', class(out))
+
+  return(out)
+}

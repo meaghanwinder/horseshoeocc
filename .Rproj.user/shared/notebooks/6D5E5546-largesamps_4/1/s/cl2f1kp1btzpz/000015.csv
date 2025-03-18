@@ -1,0 +1,5 @@
+"0","sim_reghs_unif_sum25 <- jags_summary(sim_reghs_unif_25, warmup = 0)"
+"0",""
+"0","p1_16 <- cred_plot(sim_reghs_unif_sum25, ylim = c(-1, 1))"
+"0","p2_16 <- meff_plot(sim_reghs_unif_25, title = TeX(""$p_0$ uniform prior""), x = NULL)"
+"0","gridExtra::grid.arrange(p1_16, p2_16, nrow = 2)"

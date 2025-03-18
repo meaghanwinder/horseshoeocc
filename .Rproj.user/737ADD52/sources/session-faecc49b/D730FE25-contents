@@ -1,0 +1,282 @@
+# summary
+jags_summary <- function(object, warmup = 0, thin = 1){
+  if(class(object)[1] == "horseshoeocc"){
+    object <- object$mcmc
+  }
+  # convert to coda for summary
+  fit_warmup <- lapply(object, function(x) x[(warmup+1):nrow(x),])
+  coda_samples <- as.mcmc.list(lapply(fit_warmup, function(x) as.mcmc(
+    x, start = warmup+1, end = nrow(object), thin = thin
+  )))
+
+  sum <- summary(coda_samples)
+  params <- dimnames(sum$statistics)[[1]]
+  # clean up parameter names
+  tmp_kappa <- params[which(str_detect(params, "kappa"))] %>%
+    str_remove(., "t")
+  tmp_lambda <- params[which(str_detect(params, "lambda"))] %>%
+    str_remove(., "t")
+  tmp_meff <- params[which(str_detect(params, "meff"))] %>%
+    str_remove(., "t")
+  params[which(str_detect(params, "kappa"))] <- tmp_kappa
+  params[which(str_detect(params, "lambda"))] <- tmp_lambda
+  params[which(str_detect(params, "meff"))] <- tmp_meff
+
+  tmp_sum <- cbind(sum$statistics, sum$quantiles)
+
+  # get r hat / n_eff
+  mat <- matrix(NA, nrow = nrow(tmp_sum), ncol = 3)
+  colnames(mat) <- c("Rhat", "ess_bulk", "ess_tail")
+  for(i in 1:nrow(tmp_sum)){
+    tmp <- sapply(object, function(x) x[,i])
+    mat[i,] <- c(Rhat(tmp), ess_bulk(tmp), ess_tail(tmp))
+  }
+
+  # get hdi interval
+  all_samps <- do.call("rbind", coda_samples)
+  hdi_2.5 <- apply(all_samps, 2, hdi)[1, ]
+  hdi_97.5 <- apply(all_samps, 2, hdi)[2, ]
+
+  # get median
+  median <- apply(all_samps, 2, median)
+
+  # out
+  out <- cbind(tmp_sum,
+               Median = median,
+               "HDI 2.5%" = hdi_2.5,
+               "HDI 97.5%" = hdi_97.5,
+               mat)
+  class(out) <- c('horseshoeocc_summary', class(out))
+
+  return(out)
+}
+
+# trace_plot
+trace_plot <- function(x, which = c("beta"), ...){
+  if(class(x)[1] == "horseshoeocc"){
+    x <- x$mcmc
+  }
+  niter <- dim(x[[1]])[1]
+  nchains <- length(x)
+  params <- colnames(x[[1]])
+
+  combined_samples <- do.call("rbind", x)
+  combined_samples <- combined_samples %>%
+    as_tibble %>%
+    mutate(iter = rep(1:niter, nchains),
+           chain = factor(rep(1:nchains, each = niter))) %>%
+    dplyr::select(chain,
+                  iter,
+                  everything()) %>%
+    pivot_longer(cols = -c(1:2),
+                 names_to = "param",
+                 values_to = "trace")
+
+  if(length(which) == 1){
+    if(all(is.numeric(which))){
+      vars <- unique(combined_samples$param)[which]
+    } else {
+      vars <- combined_samples %>%
+        slice(which(str_detect(param, which))) %>%
+        select(param) %>%
+        unique() %>%
+        as.vector() %>%
+        unlist()
+    }
+
+    if(length(vars) == 0) {
+      stop(paste(which, "not found. Available variables:", paste(all_vars, collapse = ", ")))
+    }
+  } else if(length(which) > 1){
+    if(all(is.numeric(which))){
+      vars <- unique(combined_samples$param)[which]
+    } else {
+      vars <- list()
+      for(i in 1:length(which)){
+        vars[[i]] <- combined_samples %>%
+          slice(which(str_detect(param, which[i]))) %>%
+          select(param) %>%
+          unique() %>%
+          as.vector()
+      }
+      vars <- unlist(vars)
+    }
+
+    if(length(vars) == 0) {
+      stop(paste(which, "not found. Available variables:", paste(all_vars, collapse = ", ")))
+    }
+  }
+
+
+  p <- combined_samples %>%
+    filter(param %in% vars) %>%
+    ggplot2::ggplot() +
+    ggplot2::geom_line(aes(x = iter, y = trace, col = chain, group = chain)) +
+    ggplot2::theme_bw() +
+    ggplot2::facet_wrap(~ param, scales = "free_y")
+
+  return(p)
+
+}
+
+# cred_plot
+cred_plot <- function(x, which = c("beta"), hdi = TRUE, equal = NULL, ...){
+  if(length(which) == 1){
+    if(all(is.numeric(which))){
+      plot_df <- x %>%
+        as.data.frame() %>%
+        slice(which) %>%
+        mutate(var = str_remove_all(rownames(.), "[:punct:]"))
+
+      if(hdi == T){
+        title =  paste0('95% HDI credibility intervals for ', rownames(plot_df))
+      } else if(hdi == F){
+        title =  paste0('95% credibility intervals for ', rownames(plot_df))
+      }
+    } else if(all(is.character(which))){
+      plot_df <- x %>%
+        as.data.frame() %>%
+        filter(str_detect(rownames(.), which)) %>%
+        mutate(var = str_remove_all(rownames(.), "[:punct:]"))
+
+      if(hdi == T){
+        title =  paste0('95% HDI credibility intervals for ', which)
+      } else if(hdi == F){
+        title =  paste0('95% credibility intervals for ', which)
+      }
+    }
+
+  } else if(length(which) > 1){
+    if(all(is.numeric(which))){
+      plot_df <- x %>%
+        as.data.frame() %>%
+        slice(which) %>%
+        mutate(var = str_remove_all(rownames(.), "[:punct:]"))
+
+      if(hdi == T){
+        title =  paste0('95% HDI credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
+      } else if(hdi == F){
+        title =  paste0('95% credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
+      }
+    } else if(all(is.character(which))){
+      plot_df <- list()
+      for(i in 1:length(which)){
+        plot_df[[i]] <- x %>%
+          as.data.frame() %>%
+          filter(str_detect(rownames(.), which[i])) %>%
+          mutate(var = str_remove_all(rownames(.), "[:punct:]"))
+      }
+      plot_df <- do.call("rbind", plot_df)
+
+      paste0(which)
+      if(hdi == T){
+        title =  paste0('95% HDI credibility intervals for ', paste(which, collapse = " and "))
+      } else if(hdi == F){
+        title =  paste0('95% HDI credibility intervals for ', paste(which, collapse = " and "))
+      }
+    }
+
+  }
+
+
+  if(hdi == T){
+    out <- plot_df %>%
+      ggplot2::ggplot() +
+      ggplot2::geom_point(ggplot2::aes(x = `HDI 2.5%`, y = var), shape = "|", size = 3) +
+      ggplot2::geom_point(ggplot2::aes(x = `HDI 97.5%`, y = var), shape = "|", size = 3) +
+      ggplot2::geom_segment(ggplot2::aes(x = `HDI 2.5%`, y = var, xend = `HDI 97.5%`, yend = var)) +
+      ggplot2::geom_point(ggplot2::aes(y = var, x = Mean)) +
+      ggplot2::labs(title = title,
+                    x = NULL,
+                    y = NULL) +
+      ggplot2::theme_bw()
+    if(!is.null(equal)){
+      out <- out +
+        ggplot2::geom_vline(xintercept = equal)
+    }
+
+    return(out)
+
+  } else if(hdi == F){
+    title =  paste0('95% credibility intervals for ', which)
+    out <- plot_df %>%
+      ggplot2::ggplot() +
+      ggplot2::geom_point(ggplot2::aes(x = `2.5%`, y = var), shape = "|", size = 3) +
+      ggplot2::geom_point(ggplot2::aes(x = `97.5%`, y = var), shape = "|", size = 3) +
+      ggplot2::geom_segment(ggplot2::aes(x = `2.5%`, y = var, xend = `97.5%`, yend = var)) +
+      ggplot2::geom_point(ggplot2::aes(y = var, x = Mean)) +
+      ggplot2::labs(title = title,
+                    x = NULL,
+                    y = NULL) +
+      ggplot2::theme_bw()
+
+    if(!is.null(equal)){
+      out <- out +
+        ggplot2::geom_vline(xintercept = equal)
+    }
+
+    return(out)
+  }
+
+}
+
+# test summary table
+setClass("horseshoeocc_mcmc", slots = list())
+
+setGeneric("summary")
+
+setMethod("summary",
+          signature(object = "horseshoeocc_mcmc"),
+          jags_summary)
+
+sum_test <- summary(test$mcmc)
+
+setClass("horseshoeocc", slots = list())
+
+setGeneric("summary")
+
+setMethod("summary",
+          signature(object = "horseshoeocc"),
+          jags_summary)
+
+sum_test <- summary(test)
+
+# test trace plots
+setGeneric(
+  "plot",
+  function(x, which = c("beta"), ...) standardGeneric("plot")
+)
+
+setMethod("plot",
+          signature(x = "horseshoeocc"),
+          trace_plot)
+
+setMethod("plot",
+          signature(x = "horseshoeocc_mcmc"),
+          trace_plot)
+
+plot(test)
+plot(test, "meff")
+plot(test, "alpha")
+plot(test, c("alpha", "beta"))
+plot(test, 1)
+
+plot(test$mcmc)
+
+# test credible intervals
+setClass("horseshoeocc_summary")
+
+setGeneric(
+  "plot",
+  function(x, which = c("beta"), hdi = TRUE, equal = NULL, ...) standardGeneric("plot")
+)
+
+setMethod("plot",
+          signature(x = "horseshoeocc_summary"),
+          cred_plot)
+
+plot(sum_test, which = "beta", hdi = T)
+plot(sum_test, c("meff", "kappa"))
+plot(sum_test, c("alpha", "beta"), equal = 0 )
+plot(sum_test, 1, equal = 0)
+

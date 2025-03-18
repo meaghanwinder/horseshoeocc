@@ -1,0 +1,5 @@
+"0","sim_reghs_p03_sum25 <- jags_summary(sim_reghs_p03_25, warmup = 0)"
+"0",""
+"0","p1_6 <- cred_plot(sim_reghs_p03_sum25, ylim = c(-1, 1))"
+"0","p2_6 <- meff_plot(sim_reghs_p03_25, title = TeX(""$p_0 = 3$""), x = NULL)"
+"0","gridExtra::grid.arrange(p1_6, p2_6, nrow = 2)"

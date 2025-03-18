@@ -1,0 +1,2 @@
+"0","sim_reghs_p025_100 <- readRDS(""sim_reghs_p025_100.rds"")"
+"0","trace_plot(sim_reghs_p025_100, ""tau"")"

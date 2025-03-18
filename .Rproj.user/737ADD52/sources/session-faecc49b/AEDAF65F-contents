@@ -1,0 +1,12 @@
+# simulated dataset
+data(sim_data100)
+
+# fit the model to simulated data
+fit <- horseshoeocc(data = sim_data100,
+                    det_model = ~w1,
+                    occ_model = ~.,
+                    mixture_mean1 = 3,
+                    mixture_var1 = 1,
+                    mixture_mean2 = 3,
+                    mixture_var2 = 25,
+                    niter = 50000)

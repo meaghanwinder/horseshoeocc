@@ -1,0 +1,5 @@
+"0","sim_reghs_mixture3_sum25 <- jags_summary(sim_reghs_mixture3_25, warmup = 0)"
+"0",""
+"0","p1_12 <- cred_plot(sim_reghs_mixture3_sum25, ylim = c(-1, 1))"
+"0","p2_12 <- meff_plot(sim_reghs_mixture3_25, title = TeX(""$p_0$ mixture prior""), x = NULL)"
+"0","gridExtra::grid.arrange(p1_12, p2_12, nrow = 2)"
