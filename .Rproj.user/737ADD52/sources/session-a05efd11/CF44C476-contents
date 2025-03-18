@@ -1,5 +1,11 @@
 #' Credible interval plots for occupancy model parameters fit using the regularized horseshoe prior
 #'
+#' @description Plot method for objects of class \code{summary.horseshoeocc}.
+#'
+#' @details
+#' You may only select one group of parameters (i.e. \code{"beta"},
+#' \code{"alpha"}, \code{"lambda"}, or \code{"kappa"}) to plot at a time.
+#'
 #' @param x an object of class \code{summary.horseshoeocc}, typically the
 #' result of a call to \code{\link{summary.horseshoeocc}}.
 #' @param which the parameters for which to generate trace plots. The value can
@@ -14,12 +20,16 @@
 #'
 #' @examples
 #' # continuing the summary.horseshoeocc example:
+#' ## plot beta credible intervals
 #' plot(fit_summary)
 #'
+#' ## plot alpha credible intervals
 #' plot(fit_summary, "alpha")
 #'
-#' plot(fit_summary, "meff")
+#' ## plot meff credible interval using HDI intervals
+#' plot(fit_summary, "meff", hdi = T)
 #'
+#' ## plot non-zero beta credible intervals
 #' plot(fit_summary, c("beta0", "beta[1]", "beta[2]", "beta[3]"))
 #'
 #' @export
@@ -54,15 +64,36 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), hdi = FALSE, equal =
         title =  paste0('95% credibility intervals for ', which)
       }
     }
-###### FIX THISSSSSSS
-  } else if(length(which) == 1){
-    plot_df <- x %>%
-      as.data.frame() %>%
-      dplyr::filter(rownames(.) %in% which) %>%
-      dplyr::mutate(var = stringr::str_remove_all(rownames(.), "[:punct:]"))
-  }
 
-  else if(length(which) > 1){
+  } else if(length(which) == 1){
+    if(all(is.numeric(which))){
+      plot_df <- x %>%
+        as.data.frame() %>%
+        dplyr::slice(which) %>%
+        dplyr::mutate(var = stringr::str_remove_all(rownames(.), "[:punct:]"))
+
+      if(hdi == T){
+        title =  paste0('95% HDI credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
+      } else if(hdi == F){
+        title =  paste0('95% credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
+      }
+    } else if (all(is.character(which))){
+      plot_df <- x %>%
+        as.data.frame() %>%
+        dplyr::mutate(param = rownames(.)) %>%
+        dplyr::filter(param == which) %>%
+        dplyr::select(-param) %>%
+        dplyr::mutate(var = stringr::str_remove_all(rownames(.), "[:punct:]"))
+
+      if(hdi == T){
+        title =  paste0('95% HDI credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
+      } else if(hdi == F){
+        title =  paste0('95% credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
+      }
+    }
+
+
+  } else if(length(which) > 1){
     if(all(is.numeric(which))){
       plot_df <- x %>%
         as.data.frame() %>%
@@ -75,16 +106,13 @@ plot.summary.horseshoeocc <- function(x, which = c("beta"), hdi = FALSE, equal =
         title =  paste0('95% credibility intervals for ', paste(rownames(plot_df), collapse = " and "))
       }
     } else if(all(is.character(which))){
-      plot_df <- list()
-      for(i in 1:length(which)){
-        plot_df[[i]] <- x %>%
-          as.data.frame() %>%
-          dplyr::filter(stringr::str_detect(rownames(.), which[i])) %>%
-          dplyr::mutate(var = stringr::str_remove_all(rownames(.), "[:punct:]"))
-      }
-      plot_df <- do.call("rbind", plot_df)
+      plot_df <- x %>%
+        as.data.frame() %>%
+        dplyr::mutate(param = rownames(.)) %>%
+        dplyr::filter(param %in% which) %>%
+        dplyr::select(-param) %>%
+        dplyr::mutate(var = stringr::str_remove_all(rownames(.), "[:punct:]"))
 
-      paste0(which)
       if(hdi == T){
         title =  paste0('95% HDI credibility intervals for ', paste(which, collapse = " and "))
       } else if(hdi == F){
