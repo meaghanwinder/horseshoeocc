@@ -1,0 +1,28 @@
+{
+    "id": "12D50D99",
+    "path": null,
+    "project_path": null,
+    "type": "object_explorer",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1742270213362.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "id": "662c2f3d587f484ba65332c61131b482",
+        "name": "tua",
+        "title": "tua",
+        "language": "R",
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 2073659383297,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1742270213362,
+    "read_only": false,
+    "read_only_alternatives": []
+}

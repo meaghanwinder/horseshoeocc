@@ -11,7 +11,7 @@
 #'
 #'
 #' @usage
-#' horseshoeocc(
+#' fit_horseshoeocc(
 #'   data = list(site_df = NULL,
 #'               samp_df = NULL),
 #'   occ_model = ~.,
@@ -142,40 +142,40 @@
 #' data(sim_data100)
 #'
 #' # fit the model to simulated data
-#' fit <- horseshoeocc(data = sim_data100,
-#'                     det_model = ~w1,
-#'                     occ_model = ~.,
-#'                     mixture_mean1 = 3,
-#'                     mixture_var1 = 1,
-#'                     mixture_mean2 = 3,
-#'                     mixture_var2 = 25,
-#'                     niter = 1000,
-#'                     seed = 123)
+#' fit <- fit_horseshoeocc(data = sim_data100,
+#'                         det_model = ~w1,
+#'                         occ_model = ~.,
+#'                         mixture_mean1 = 3,
+#'                         mixture_var1 = 1,
+#'                         mixture_mean2 = 3,
+#'                         mixture_var2 = 25,
+#'                         niter = 1000,
+#'                         seed = 123)
 #'
 #'
 #' @export
 
-horseshoeocc <- function(data = list(site_df = NULL,
-                                     samp_df = NULL),
-                         occ_model = ~.,
-                         det_model = ~1,
-                         priors = list(
-                           beta0 = list(mu0 = 0, sigma0 = 2),
-                           alpha0 = list(mu0 = 0, sigma0 = 2),
-                           alpha = list(mu0 = 0, sigma0 = 2),
-                           c = list(df_slab = 4, scale_slab = 2)),
-                         mixture_mean1 = NULL,
-                         mixture_var1 = 1,
-                         mixture_weight1 = 0.5,
-                         mixture_mean2 = NULL,
-                         mixture_var2 = 25,
-                         mixture_weight2 = 0.5,
-                         pseudovar = 4,
-                         nchain = 3,
-                         niter = 1e+05,
-                         nburnin = niter/2,
-                         thin = 5,
-                         seed = NULL
+fit_horseshoeocc <- function(data = list(site_df = NULL,
+                                         samp_df = NULL),
+                             occ_model = ~.,
+                             det_model = ~1,
+                             priors = list(
+                               beta0 = list(mu0 = 0, sigma0 = 2),
+                               alpha0 = list(mu0 = 0, sigma0 = 2),
+                               alpha = list(mu0 = 0, sigma0 = 2),
+                               c = list(df_slab = 4, scale_slab = 2)),
+                             mixture_mean1 = NULL,
+                             mixture_var1 = 1,
+                             mixture_weight1 = 0.5,
+                             mixture_mean2 = NULL,
+                             mixture_var2 = 25,
+                             mixture_weight2 = 0.5,
+                             pseudovar = 4,
+                             nchain = 3,
+                             niter = 1e+05,
+                             nburnin = niter/2,
+                             thin = 5,
+                             seed = NULL
 ){
   # set optional seed
   if(!is.null(seed)){
