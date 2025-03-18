@@ -4,7 +4,7 @@
 \alias{plot.summary.horseshoeocc_derived}
 \title{Credible interval plots for occupancy model derived parameters fit using the regularized horseshoe prior}
 \usage{
-\method{plot}{summary.horseshoeocc_derived}(x, which = c("psi"), hdi = FALSE, equal = NULL, ...)
+\method{plot}{summary.horseshoeocc_derived}(x, which = c("psi"), median = FALSE, hdi = FALSE, equal = NULL, ...)
 }
 \arguments{
 \item{x}{an object of class \code{summary.horseshoeocc_derived}, typically the
@@ -12,6 +12,9 @@ result of a call to \code{\link{summary.horseshoeocc_derived}}.}
 
 \item{which}{the parameters for which to generate trace plots. The value can
 be either \code{"psi"} or \code{"p"}; defaults to \code{"psi"}.}
+
+\item{median}{logical; defaults to \code{FALSE}. If \code{TRUE}, the point
+corresponds to the median rather than the mean.}
 
 \item{hdi}{logical; defaults to \code{FALSE}. If \code{TRUE}, the highest
 (posterior) density intervals (HDI) are plotted.}
