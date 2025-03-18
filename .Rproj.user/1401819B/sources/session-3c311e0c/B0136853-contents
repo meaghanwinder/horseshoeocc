@@ -1,0 +1,34 @@
+# Load necessary libraries
+library(ggplot2)
+
+# Define horseshoe prior density function
+horseshoe_prior_density <- function(beta, lambda = 1, tau = 1) {
+  # Horseshoe prior density
+  return( (lambda / sqrt(2 * pi)) * exp(-beta^2 / (2 * lambda^2)) * (1 / (tau^2 + beta^2)) )
+}
+
+horseshoe_kappa <- function(lambda){
+  return(1/(1 + lambda^2))
+}
+
+
+# Generate beta values for plotting
+beta_values <- seq(-5, 5, length.out = 1000)
+
+
+
+lambda_values <- abs(rcauchy(10000000, location = 0, scale = 1))
+
+# Calculate the density of the horseshoe prior for each beta
+prior_density <- sapply(beta_values, horseshoe_prior_density, lambda = 1, tau = 1)
+
+prior_kappa <- sapply(lambda_values, horseshoe_kappa)
+
+data_kappa <- data.frame(kappa = prior_kappa)
+# Create a data frame for plotting
+data <- data.frame(beta = beta_values, density = prior_density)
+
+# Plot using ggplot
+ggplot(data_kappa, aes(x = prior_kappa)) +
+  geom_density(linewidth = 2, bw = 0.001) +
+  theme_void()
