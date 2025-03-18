@@ -161,5 +161,13 @@ fit <- fit_horseshoeocc(data = sim_data100,
                         niter = 1000, # small number of iterations to run quickly
                         seed = 123)
 
+# posterior summaries of fit
+fit_summary <- summary(fit)
+
+# trace plots for non-zero beta coefficients
+plot(fit, c("beta0", "beta[1]", "beta[2]", "beta[3]"))
+
+# credibility intervals for non-zero beta coefficients
+plot(fit_summary, c("beta0", "beta[1]", "beta[2]", "beta[3]"), equal = 0)
 
 }

@@ -198,12 +198,12 @@ print.summary.horseshoeocc <- function(x, hdi = FALSE){
   print(occ_model)
   cat("\n")
 
-  cat("Beta coefficient summary:\n")
-  print(beta_tbl)
-  cat("\n")
-
   cat("Effective number of beta coefficients:\n")
   print(meff_tbl)
+  cat("\n")
+
+  cat("Beta coefficient summary:\n")
+  print(beta_tbl)
   cat("\n")
 
   cat("Model for detection probability:\n")

@@ -22,6 +22,8 @@ be either \code{"psi"} or \code{"p"}; defaults to \code{"psi"}.}
 }
 \value{
 A ggplot (if \code{"psi"}) or list of ggplot objects (if \code{"p"}).
+The ggplot objects are credible interval plots of the estimated occupancy or
+detection probabilities.
 }
 \description{
 Plot method for objects of class \code{summary.horseshoeocc_derived}.

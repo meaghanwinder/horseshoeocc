@@ -17,7 +17,7 @@ for all of the beta coefficients using \code{"beta"}; defaults to \code{"beta"}.
 \item{...}{Other arguments.}
 }
 \value{
-Returns a ggplot.
+Returns a ggplot object that is a trace plot of the chosen model parameter(s).
 }
 \description{
 Plot method for objects of class \code{horseshoeocc}.

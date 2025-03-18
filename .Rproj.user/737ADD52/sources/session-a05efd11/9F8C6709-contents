@@ -13,7 +13,7 @@
 #' for all of the beta coefficients using \code{"beta"}; defaults to \code{"beta"}.
 #' @param ... Other arguments.
 #'
-#' @returns Returns a ggplot.
+#' @returns Returns a ggplot object that is a trace plot of the chosen model parameter(s).
 #'
 #' @examples
 #' # continuing the horseshoeocc example:

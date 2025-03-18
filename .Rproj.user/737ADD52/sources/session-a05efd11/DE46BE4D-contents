@@ -95,7 +95,7 @@ summary.horseshoeocc_derived <- function(object){
 #'
 #' @rdname summary.horseshoeocc_derived
 #'
-print.horseshoeocc_derivedsum <- function(x, hdi = FALSE){
+print.summary.horseshoeocc_derived <- function(x, hdi = FALSE){
   occ_model <- x$model$occ_model
   det_model <- x$model$det_model
 

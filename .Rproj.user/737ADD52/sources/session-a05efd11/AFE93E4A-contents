@@ -3,7 +3,8 @@ Type: Package
 Title: Package for Fitting and Summarizing Occupancy Models Using the Regularized Horseshoe Prior
 Version: 0.1.0
 Authors@R: c(
-    person("Meaghan", "Winder", email = "mwinder@middlebury.edu", role = c("aut", "cre"))
+    person("Meaghan", "Winder", email = "mwinder@middlebury.edu", role = c("aut", "cre")), 
+    person("Andrew", "Hoegh", email = "andrew.hoegh@montana.edu", role = c("aut"))
     )
 Description:  This package allows for the fitting and summarizing of the
     occupancy model described by MacKenzie et al. (2002) using the regularized 

@@ -2,12 +2,12 @@
 % Please edit documentation in R/summary.horseshoeocc_derived.R
 \name{summary.horseshoeocc_derived}
 \alias{summary.horseshoeocc_derived}
-\alias{print.horseshoeocc_derivedsum}
+\alias{print.summary.horseshoeocc_derived}
 \title{Summarize occupancy model derived parameters fit using the regularized horseshoe prior}
 \usage{
 \method{summary}{horseshoeocc_derived}(object)
 
-\method{print}{horseshoeocc_derivedsum}(x, hdi = FALSE)
+\method{print}{summary.horseshoeocc_derived}(x, hdi = FALSE)
 }
 \arguments{
 \item{object}{an object of class \code{horseshoeocc_derived}, typically a result of

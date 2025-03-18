@@ -16,7 +16,8 @@
 #' @param equal optional value to compare to each credibility interval.
 #' @param ... Other arguments.
 #'
-#' @returns Returns a ggplot.
+#' @returns Returns a ggplot object that is a credible interval plot of the
+#' chosen model parameter(s).
 #'
 #' @examples
 #' # continuing the summary.horseshoeocc example:
