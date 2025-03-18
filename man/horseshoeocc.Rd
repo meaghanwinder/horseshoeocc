@@ -2,7 +2,7 @@
 % Please edit documentation in R/horseshoeocc.R
 \name{horseshoeocc}
 \alias{horseshoeocc}
-\title{horseshoeocc: Fit and summarize occupancy models using the regularized horseshoe prior}
+\title{horseshoeocc: Bayesian occupancy modeling with the regularized horseshoe prior in R}
 \description{
 This package allows for the fitting and summarizing of the
 occupancy models using the regularized horseshoe prior. We use
