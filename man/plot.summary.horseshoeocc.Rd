@@ -4,7 +4,7 @@
 \alias{plot.summary.horseshoeocc}
 \title{Credible interval plots for occupancy model parameters fit using the regularized horseshoe prior}
 \usage{
-\method{plot}{summary.horseshoeocc}(x, which = c("beta"), median = FALSE, hdi = FALSE, equal = NULL, ...)
+\method{plot}{summary.horseshoeocc}(x, which = c("beta"), median = TRUE, hdi = TRUE, equal = NULL, ...)
 }
 \arguments{
 \item{x}{an object of class \code{summary.horseshoeocc}, typically the
@@ -14,11 +14,11 @@ result of a call to \code{\link{summary.horseshoeocc}}.}
 be a specific parameter (i.e. \code{"beta[1]"}), or you can plot the trace plots
 for all of the beta coefficients using \code{"beta"}; defaults to \code{"beta"}.}
 
-\item{median}{logical; defaults to \code{FALSE}. If \code{TRUE}, the point
-corresponds to the median rather than the mean.}
+\item{median}{logical; defaults to \code{TRUE}. If \code{FALSE}, the point
+corresponds to the mean rather than the median.}
 
-\item{hdi}{logical; defaults to \code{FALSE}. If \code{TRUE}, the highest
-(posterior) density intervals (HDI) are plotted.}
+\item{hdi}{logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based
+credibility intervals are used.}
 
 \item{equal}{optional value to compare to each credibility interval.}
 
@@ -43,10 +43,10 @@ plot(fit_summary)
 ## plot alpha credible intervals
 plot(fit_summary, "alpha")
 
-## plot meff credible interval using HDI intervals
-plot(fit_summary, "meff", hdi = T)
+## plot meff credible interval
+plot(fit_summary, "meff")
 
 ## plot non-zero beta credible intervals
-plot(fit_summary, c("beta0", "beta[1]", "beta[2]", "beta[3]"))
+plot(fit_summary, c("beta0", "beta[1]", "beta[2]"), equal = 0)
 
 }

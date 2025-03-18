@@ -11,10 +11,10 @@
 #' @param which the parameters for which to generate trace plots. The value can
 #' be a specific parameter (i.e. \code{"beta[1]"}), or you can plot the trace plots
 #' for all of the beta coefficients using \code{"beta"}; defaults to \code{"beta"}.
-#' @param median logical; defaults to \code{FALSE}. If \code{TRUE}, the point
-#' corresponds to the median rather than the mean.
-#' @param hdi logical; defaults to \code{FALSE}. If \code{TRUE}, the highest
-#' (posterior) density intervals (HDI) are plotted.
+#' @param median logical; defaults to \code{TRUE}. If \code{FALSE}, the point
+#' corresponds to the mean rather than the median.
+#' @param hdi logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based
+#' credibility intervals are used.
 #' @param equal optional value to compare to each credibility interval.
 #' @param ... Other arguments.
 #'
@@ -29,15 +29,15 @@
 #' ## plot alpha credible intervals
 #' plot(fit_summary, "alpha")
 #'
-#' ## plot meff credible interval using HDI intervals
-#' plot(fit_summary, "meff", hdi = T)
+#' ## plot meff credible interval
+#' plot(fit_summary, "meff")
 #'
 #' ## plot non-zero beta credible intervals
-#' plot(fit_summary, c("beta0", "beta[1]", "beta[2]", "beta[3]"))
+#' plot(fit_summary, c("beta0", "beta[1]", "beta[2]"), equal = 0)
 #'
 #' @export
 #'
-plot.summary.horseshoeocc <- function(x, which = c("beta"), median = FALSE, hdi = FALSE, equal = NULL, ...){
+plot.summary.horseshoeocc <- function(x, which = c("beta"), median = TRUE, hdi = TRUE, equal = NULL, ...){
   x <- x$mcmc
   if(all(length(which) == 1 & which == "alpha") |
      all(length(which) == 1 & which == "beta") |

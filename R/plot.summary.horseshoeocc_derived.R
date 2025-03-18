@@ -6,10 +6,10 @@
 #' result of a call to \code{\link{summary.horseshoeocc_derived}}.
 #' @param which the parameters for which to generate trace plots. The value can
 #' be either \code{"psi"} or \code{"p"}; defaults to \code{"psi"}.
-#' @param median logical; defaults to \code{FALSE}. If \code{TRUE}, the point
-#' corresponds to the median rather than the mean.
-#' @param hdi logical; defaults to \code{FALSE}. If \code{TRUE}, the highest
-#' (posterior) density intervals (HDI) are plotted.
+#' @param median logical; defaults to \code{TRUE}. If \code{FALSE}, the point
+#' corresponds to the mean rather than the median.
+#' @param hdi logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based
+#' credibility intervals are used.
 #' @param equal optional value to compare to each credibility interval.
 #' @param ... Other arguments.
 #'
@@ -28,9 +28,13 @@
 #'
 #' @export
 #'
-plot.summary.horseshoeocc_derived <- function(x, which = c("psi"), median = FALSE, hdi = FALSE, equal = NULL, ...){
+plot.summary.horseshoeocc_derived <- function(x, which = c("psi"), median = TRUE, hdi = TRUE, equal = NULL, ...){
   psi_sum <- x$psi
   p_sum <- x$p
+
+  if(which != "psi" & which != "p"){
+    stop("The argument 'which' must take on the value of 'psi' or 'p'.")
+  }
 
   if(which == "psi"){
     plot_df <- psi_sum %>%
@@ -54,7 +58,7 @@ plot.summary.horseshoeocc_derived <- function(x, which = c("psi"), median = FALS
         ggplot2::labs(title = title,
                       x = xlab,
                       y = NULL) +
-        ggplot2::scale_y_continuous(breaks = seq(1, nrow(psi_sum))) +
+        # ggplot2::scale_y_continuous(breaks = seq(1, nrow(psi_sum))) +
         ggplot2::theme_bw()
       if(!is.null(equal)){
         out <- out +
@@ -70,7 +74,7 @@ plot.summary.horseshoeocc_derived <- function(x, which = c("psi"), median = FALS
         ggplot2::labs(title = title,
                       x = xlab,
                       y = NULL) +
-        ggplot2::scale_y_continuous(breaks = seq(1, nrow(psi_sum))) +
+        # ggplot2::scale_y_continuous(breaks = seq(1, nrow(psi_sum))) +
         ggplot2::theme_bw()
 
       if(!is.null(equal)){
@@ -121,11 +125,11 @@ plot.summary.horseshoeocc_derived <- function(x, which = c("psi"), median = FALS
         }
 
         if(median == T){
-          out <- out +
-            ggplot2::geom_point(ggplot2::aes(y = var, x = Median))
+          out[[i]] <- out[[i]] +
+            ggplot2::geom_point(ggplot2::aes(y = samp, x = Median))
         } else if (median == F){
-          out <- out +
-            ggplot2::geom_point(ggplot2::aes(y = var, x = Mean))
+          out[[i]] <- out[[i]] +
+            ggplot2::geom_point(ggplot2::aes(y = samp, x = Mean))
         }
       }
     } else if(hdi == F){
@@ -150,11 +154,11 @@ plot.summary.horseshoeocc_derived <- function(x, which = c("psi"), median = FALS
         }
 
         if(median == T){
-          out <- out +
-            ggplot2::geom_point(ggplot2::aes(y = var, x = Median))
+          out[[i]] <- out[[i]] +
+            ggplot2::geom_point(ggplot2::aes(y = samp, x = Median))
         } else if (median == F){
-          out <- out +
-            ggplot2::geom_point(ggplot2::aes(y = var, x = Mean))
+          out[[i]] <- out[[i]] +
+            ggplot2::geom_point(ggplot2::aes(y = samp, x = Mean))
         }
       }
     }

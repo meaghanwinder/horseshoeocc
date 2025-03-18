@@ -148,15 +148,15 @@ distribution for \eqn{p_0}.
 }
 \examples{
 # simulated dataset
-data(sim_data100)
+data(koala_data100)
 
 # fit the model to simulated data
-fit <- fit_horseshoeocc(data = sim_data100,
-                        det_model = ~w1,
+fit <- fit_horseshoeocc(data = koala_data100,
+                        det_model = ~weather,
                         occ_model = ~.,
-                        mixture_mean1 = 3,
+                        mixture_mean1 = 2,
                         mixture_var1 = 1,
-                        mixture_mean2 = 3,
+                        mixture_mean2 = 2,
                         mixture_var2 = 25,
                         niter = 1000, # small number of iterations to run quickly
                         seed = 123)
@@ -165,9 +165,10 @@ fit <- fit_horseshoeocc(data = sim_data100,
 fit_summary <- summary(fit)
 
 # trace plots for non-zero beta coefficients
-plot(fit, c("beta0", "beta[1]", "beta[2]", "beta[3]"))
+plot(fit, c("beta0", "beta[1]", "beta[2]"))
 
 # credibility intervals for non-zero beta coefficients
-plot(fit_summary, c("beta0", "beta[1]", "beta[2]", "beta[3]"), equal = 0)
+plot(fit_summary, c("beta0", "beta[1]", "beta[2]"), equal = 0)
+
 
 }
