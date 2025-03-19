@@ -6,7 +6,7 @@
 #' You may only select one group of parameters (i.e. \code{"beta"},
 #' \code{"alpha"}, \code{"lambda"}, or \code{"kappa"}) to plot at a time.
 #'
-#' @param x an object of class \code{horseshoeocc}, typically a result of
+#' @param fit an object of class \code{horseshoeocc}, typically a result of
 #' a model fit using \code{\link{horseshoeocc}}.
 #' @param which the parameters for which to generate trace plots. The value can
 #' be a specific parameter (i.e. \code{"beta[1]"}), or you can plot the trace plots
@@ -31,7 +31,7 @@
 #' @export
 #'
 #'
-plot.horseshoeocc <- function(x, which = c("beta"), ...){
+plot.horseshoeocc <- function(fit, which = c("beta"), ...){
   x <- x$mcmc
 
   niter <- dim(x[[1]])[1]

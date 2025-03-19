@@ -5,19 +5,19 @@
 \alias{print.summary.horseshoeocc_derived}
 \title{Summarize occupancy model derived parameters fit using the regularized horseshoe prior}
 \usage{
-\method{summary}{horseshoeocc_derived}(object)
+\method{summary}{horseshoeocc_derived}(fit_derived)
 
-\method{print}{summary.horseshoeocc_derived}(x, hdi = TRUE)
+\method{print}{summary.horseshoeocc_derived}(sum_fit_derived, hdi = TRUE)
 }
 \arguments{
-\item{object}{an object of class \code{horseshoeocc_derived}, typically a result of
+\item{fit_derived}{an object of class \code{horseshoeocc_derived}, typically a result of
 a calculating the derived parameters from the model fit using \code{\link{derived_parameters}}.}
-
-\item{x}{An object of class \code{summary.horseshoeocc}, typically the
-result of a call to \code{summary.horseshoeocc}}
 
 \item{hdi}{logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based
 credibility intervals are used.}
+
+\item{x}{An object of class \code{summary.horseshoeocc}, typically the
+result of a call to \code{summary.horseshoeocc}}
 }
 \value{
 \code{summary()} computes and returns an object of class \code{list}

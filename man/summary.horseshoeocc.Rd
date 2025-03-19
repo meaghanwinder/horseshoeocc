@@ -5,15 +5,15 @@
 \alias{print.summary.horseshoeocc}
 \title{Summarize occupancy model fit using the regularized horseshoe prior}
 \usage{
-\method{summary}{horseshoeocc}(object)
+\method{summary}{horseshoeocc}(fit)
 
-\method{print}{summary.horseshoeocc}(x, hdi = TRUE)
+\method{print}{summary.horseshoeocc}(fit_sum, hdi = TRUE)
 }
 \arguments{
-\item{object}{an object of class \code{horseshoeocc}, typically a result of
+\item{fit}{an object of class \code{horseshoeocc}, typically a result of
 a model fit using \code{\link{horseshoeocc}}.}
 
-\item{x}{an object of class \code{summary.horseshoeocc}, typically the
+\item{fit_sum}{an object of class \code{summary.horseshoeocc}, typically the
 result of a call to \code{summary.horseshoeocc}.}
 
 \item{hdi}{logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based

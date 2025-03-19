@@ -4,10 +4,17 @@
 \alias{plot.summary.horseshoeocc_derived}
 \title{Credible interval plots for occupancy model derived parameters fit using the regularized horseshoe prior}
 \usage{
-\method{plot}{summary.horseshoeocc_derived}(x, which = c("psi"), median = TRUE, hdi = TRUE, equal = NULL, ...)
+\method{plot}{summary.horseshoeocc_derived}(
+  sum_fit_derived,
+  which = c("psi"),
+  median = TRUE,
+  hdi = TRUE,
+  equal = NULL,
+  ...
+)
 }
 \arguments{
-\item{x}{an object of class \code{summary.horseshoeocc_derived}, typically the
+\item{sum_fit_derived}{an object of class \code{summary.horseshoeocc_derived}, typically the
 result of a call to \code{\link{summary.horseshoeocc_derived}}.}
 
 \item{which}{the parameters for which to generate trace plots. The value can

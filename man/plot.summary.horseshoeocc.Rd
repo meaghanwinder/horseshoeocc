@@ -4,10 +4,10 @@
 \alias{plot.summary.horseshoeocc}
 \title{Credible interval plots for occupancy model parameters fit using the regularized horseshoe prior}
 \usage{
-\method{plot}{summary.horseshoeocc}(x, which = c("beta"), median = TRUE, hdi = TRUE, equal = NULL, ...)
+\method{plot}{summary.horseshoeocc}(fit_sum, which = c("beta"), median = TRUE, hdi = TRUE, equal = NULL, ...)
 }
 \arguments{
-\item{x}{an object of class \code{summary.horseshoeocc}, typically the
+\item{fit_sum}{an object of class \code{summary.horseshoeocc}, typically the
 result of a call to \code{\link{summary.horseshoeocc}}.}
 
 \item{which}{the parameters for which to generate credibility interval plots. The value can

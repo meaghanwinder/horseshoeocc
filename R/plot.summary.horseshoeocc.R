@@ -6,7 +6,7 @@
 #' You may only select one group of parameters (i.e. \code{"beta"},
 #' \code{"alpha"}, \code{"lambda"}, or \code{"kappa"}) to plot at a time.
 #'
-#' @param x an object of class \code{summary.horseshoeocc}, typically the
+#' @param fit_sum an object of class \code{summary.horseshoeocc}, typically the
 #' result of a call to \code{\link{summary.horseshoeocc}}.
 #' @param which the parameters for which to generate credibility interval plots. The value can
 #' be a specific parameter (i.e. \code{"beta[1]"}), or you can plot the credibility intervals
@@ -38,7 +38,7 @@
 #'
 #' @export
 #'
-plot.summary.horseshoeocc <- function(x, which = c("beta"), median = TRUE, hdi = TRUE, equal = NULL, ...){
+plot.summary.horseshoeocc <- function(fit_sum, which = c("beta"), median = TRUE, hdi = TRUE, equal = NULL, ...){
   x <- x$mcmc
   if(all(length(which) == 1 & which == "alpha") |
      all(length(which) == 1 & which == "beta") |

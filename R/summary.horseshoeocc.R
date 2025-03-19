@@ -2,7 +2,7 @@
 #'
 #' @description Summary method for objects of class \code{horseshoeocc}.
 #'
-#' @param object an object of class \code{horseshoeocc}, typically a result of
+#' @param fit an object of class \code{horseshoeocc}, typically a result of
 #' a model fit using \code{\link{horseshoeocc}}.
 #'
 #' @returns \code{summary()} computes and returns an object of class \code{list}
@@ -35,7 +35,7 @@
 #'
 #' @export
 #'
-summary.horseshoeocc <- function(object){
+summary.horseshoeocc <- function(fit){
   mcmc <- object$mcmc
   model <- object$model
 
@@ -110,7 +110,7 @@ summary.horseshoeocc <- function(object){
 #' and detection. Additionally, the output includes a summary of the effective
 #' number of beta coefficients in the model as well the MCMC information.
 #'
-#' @param x an object of class \code{summary.horseshoeocc}, typically the
+#' @param fit_sum an object of class \code{summary.horseshoeocc}, typically the
 #' result of a call to \code{summary.horseshoeocc}.
 #' @param hdi logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based
 #' credibility intervals are used.
@@ -119,7 +119,7 @@ summary.horseshoeocc <- function(object){
 #'
 #' @rdname summary.horseshoeocc
 #'
-print.summary.horseshoeocc <- function(x, hdi = TRUE){
+print.summary.horseshoeocc <- function(fit_sum, hdi = TRUE){
   occ_model <- x$model$occ_model
   det_model <- x$model$det_model
 

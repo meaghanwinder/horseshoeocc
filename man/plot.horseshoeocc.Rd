@@ -4,10 +4,10 @@
 \alias{plot.horseshoeocc}
 \title{Trace plots for occupancy model parameters fit using the regularized horseshoe prior}
 \usage{
-\method{plot}{horseshoeocc}(x, which = c("beta"), ...)
+\method{plot}{horseshoeocc}(fit, which = c("beta"), ...)
 }
 \arguments{
-\item{x}{an object of class \code{horseshoeocc}, typically a result of
+\item{fit}{an object of class \code{horseshoeocc}, typically a result of
 a model fit using \code{\link{horseshoeocc}}.}
 
 \item{which}{the parameters for which to generate trace plots. The value can
