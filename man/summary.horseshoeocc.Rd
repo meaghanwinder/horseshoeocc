@@ -52,7 +52,7 @@ number of beta coefficients in the model as well the MCMC information.
 # continuing the horseshoeocc example:
 fit_summary <- summary(fit)
 
-print(fit_summary, hdi = T)
+print(fit_summary)
 print(fit_summary, hdi = F)
 
 }

@@ -33,7 +33,7 @@ You may only select one group of parameters (i.e. \code{"beta"},
 plot(fit, "alpha")
 
 ## trace plots for the non-zero beta coefficients
-plot(fit, c("beta0", "beta[1]", "beta[2]", "beta[3]"))
+plot(fit, c("beta0", "beta[1]", "beta[2]"))
 
 ## trace plot for meff (either works)
 plot(fit, "mefft")

@@ -1,26 +1,26 @@
 {
-    "id": "94CAF2AC",
-    "path": "~/horseshoeocc/R/summary.horseshoeocc.R",
-    "project_path": "R/summary.horseshoeocc.R",
+    "id": "6DAF9A53",
+    "path": "~/horseshoeocc/R/fit_horseshoeocc.R",
+    "project_path": "R/fit_horseshoeocc.R",
     "type": "r_source",
-    "hash": "313506995",
+    "hash": "1594594816",
     "contents": "",
     "dirty": false,
-    "created": 1742410327654.0,
+    "created": 1742413257463.0,
     "source_on_save": false,
     "relative_order": 7,
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "112,17",
-        "scrollLine": "87"
+        "cursorPosition": "166,2",
+        "scrollLine": "69"
     },
     "folds": "",
-    "lastKnownWriteTime": 1742412037,
+    "lastKnownWriteTime": 1742333941,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1742412037112,
+    "last_content_update": 1742333941,
     "read_only": false,
     "read_only_alternatives": []
 }

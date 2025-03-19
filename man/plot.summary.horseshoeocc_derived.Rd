@@ -40,11 +40,11 @@ Plot method for objects of class \code{summary.horseshoeocc_derived}.
 }
 \examples{
 # continuing the summary.horseshoe_derived example:
-## plot of credibility intervals for psi
+## plot HDI credibility intervals for psi
 plot(derived_summary, "psi")
 
-## list of plots of credibility intervals for p
-p_plots <- plot(derived_summary, "p")
+## list of plots of quantile based credibility intervals for p
+p_plots <- plot(derived_summary, "p", median = F, hdi = F)
 p_plots[[1]]
 
 }

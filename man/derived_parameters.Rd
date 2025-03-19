@@ -36,4 +36,6 @@ and \code{p}, representing the occupancy and detection probabilities respectivel
 # continuing the horseshoeocc example:
 fit_derived <- derived_parameters(fit)
 
+print(fit_derived)
+
 }

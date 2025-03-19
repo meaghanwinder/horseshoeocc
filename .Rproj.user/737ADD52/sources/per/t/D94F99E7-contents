@@ -24,13 +24,13 @@
 #'
 #' @examples
 #' # continuing the summary.horseshoeocc example:
-#' ## plot beta credible intervals
+#' ## plot HDI credibility intervals for beta
 #' plot(fit_summary)
 #'
-#' ## plot alpha credible intervals
+#' ## plot quantile based credibility intervals for alpha
 #' plot(fit_summary, "alpha")
 #'
-#' ## plot meff credible interval
+#' ## plot the HDI credibility interval for meff
 #' plot(fit_summary, "meff")
 #'
 #' ## plot non-zero beta credible intervals
