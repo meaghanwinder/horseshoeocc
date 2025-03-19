@@ -12,7 +12,8 @@ a model fit using \code{\link{horseshoeocc}}.}
 
 \item{which}{the parameters for which to generate trace plots. The value can
 be a specific parameter (i.e. \code{"beta[1]"}), or you can plot the trace plots
-for all of the beta coefficients using \code{"beta"}; defaults to \code{"beta"}.}
+for all alpha, beta, lambda, or kappa coefficients using \code{"alpha"},
+\code{"beta"}, \code{"lambda"}, or \code{"kappa"}, respectively; defaults to \code{"beta"}.}
 
 \item{...}{Other arguments.}
 }

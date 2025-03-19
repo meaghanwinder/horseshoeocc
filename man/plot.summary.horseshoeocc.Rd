@@ -10,9 +10,10 @@
 \item{x}{an object of class \code{summary.horseshoeocc}, typically the
 result of a call to \code{\link{summary.horseshoeocc}}.}
 
-\item{which}{the parameters for which to generate trace plots. The value can
-be a specific parameter (i.e. \code{"beta[1]"}), or you can plot the trace plots
-for all of the beta coefficients using \code{"beta"}; defaults to \code{"beta"}.}
+\item{which}{the parameters for which to generate credibility interval plots. The value can
+be a specific parameter (i.e. \code{"beta[1]"}), or you can plot the credibility intervals
+for all alpha, beta, lambda, or kappa coefficients using \code{"alpha"},
+\code{"beta"}, \code{"lambda"}, or \code{"kappa"}, respectively; defaults to \code{"beta"}.}
 
 \item{median}{logical; defaults to \code{TRUE}. If \code{FALSE}, the point
 corresponds to the mean rather than the median.}
