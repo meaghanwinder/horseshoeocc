@@ -7,7 +7,7 @@
 \usage{
 \method{summary}{horseshoeocc}(object)
 
-\method{print}{summary.horseshoeocc}(x, hdi = FALSE)
+\method{print}{summary.horseshoeocc}(x, hdi = TRUE)
 }
 \arguments{
 \item{object}{an object of class \code{horseshoeocc}, typically a result of
@@ -16,8 +16,8 @@ a model fit using \code{\link{horseshoeocc}}.}
 \item{x}{an object of class \code{summary.horseshoeocc}, typically the
 result of a call to \code{summary.horseshoeocc}.}
 
-\item{hdi}{logical; defaults to \code{FALSE}. If \code{TRUE}, the highest
-(posterior) density intervals (HDI) are shown.}
+\item{hdi}{logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based
+credibility intervals are used.}
 }
 \value{
 \code{summary()} computes and returns an object of class \code{list}

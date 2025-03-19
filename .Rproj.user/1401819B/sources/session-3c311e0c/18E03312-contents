@@ -100,7 +100,11 @@
 #' @param mixture_weight2 the weight of the second component of the mixture prior;
 #' defaults to 0.5.
 #'
-#' @param pseudovar estimated value for the pseudo-variance; defaults to 4.
+#' @param pseudovar estimated value for the pseudo-variance
+#' \href{https://doi.org/10.1214/17-EJS1337SI}{(Piironen and Vehtari 2017)}; the
+#' default of 4 corresponds to a proportion of occupied sites of 0.5. Changing
+#' the value of \eqn{\bar{z}} does not have a meaningful impact on the results, so
+#' we recommend the default value.
 #'
 #' @param nchain number of Markov chains; defaults to 3.
 #'
@@ -139,18 +143,27 @@
 #'
 #' @examples
 #' # simulated dataset
-#' data(sim_data100)
+#' data(koala_data100)
 #'
 #' # fit the model to simulated data
-#' fit <- fit_horseshoeocc(data = sim_data100,
-#'                         det_model = ~w1,
+#' fit <- fit_horseshoeocc(data = koala_data100,
+#'                         det_model = ~weather,
 #'                         occ_model = ~.,
-#'                         mixture_mean1 = 3,
+#'                         mixture_mean1 = 2,
 #'                         mixture_var1 = 1,
-#'                         mixture_mean2 = 3,
+#'                         mixture_mean2 = 2,
 #'                         mixture_var2 = 25,
-#'                         niter = 1000,
+#'                         niter = 1000, # small number of iterations to run quickly
 #'                         seed = 123)
+#'
+#' # posterior summaries of fit
+#' fit_summary <- summary(fit)
+#'
+#' # trace plots for non-zero beta coefficients
+#' plot(fit, c("beta0", "beta[1]", "beta[2]"))
+#'
+#' # credibility intervals for non-zero beta coefficients
+#' plot(fit_summary, c("beta0", "beta[1]", "beta[2]"), equal = 0)
 #'
 #'
 #' @export
@@ -526,5 +539,6 @@ fit_horseshoeocc <- function(data = list(site_df = NULL,
   class(out) <- c('horseshoeocc', class(out))
   return(out)
 }
+
 
 

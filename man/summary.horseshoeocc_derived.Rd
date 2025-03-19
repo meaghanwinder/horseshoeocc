@@ -7,7 +7,7 @@
 \usage{
 \method{summary}{horseshoeocc_derived}(object)
 
-\method{print}{summary.horseshoeocc_derived}(x, hdi = FALSE)
+\method{print}{summary.horseshoeocc_derived}(x, hdi = TRUE)
 }
 \arguments{
 \item{object}{an object of class \code{horseshoeocc_derived}, typically a result of
@@ -16,8 +16,8 @@ a calculating the derived parameters from the model fit using \code{\link{derive
 \item{x}{An object of class \code{summary.horseshoeocc}, typically the
 result of a call to \code{summary.horseshoeocc}}
 
-\item{hdi}{logical; defaults to \code{FALSE}. If \code{TRUE}, the highest
-(posterior) density intervals (HDI) are shown.}
+\item{hdi}{logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based
+credibility intervals are used.}
 }
 \value{
 \code{summary()} computes and returns an object of class \code{list}
