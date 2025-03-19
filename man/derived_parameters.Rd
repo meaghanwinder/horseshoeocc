@@ -36,6 +36,15 @@ and \code{p}, representing the occupancy and detection probabilities respectivel
 # continuing the horseshoeocc example:
 fit_derived <- derived_parameters(fit)
 
-print(fit_derived)
+# calculate and print a summary of the derived parameters
+derived_summary <- summary(fit_derived)
+
+print(derived_summary)
+
+# plot the credibility intervals for psi
+plot(derived_summary, "psi")
+
+# plot the credibility intervals for p
+p_plots <- plot(derived_summary, "p")
 
 }

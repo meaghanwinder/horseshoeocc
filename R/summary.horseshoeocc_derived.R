@@ -27,7 +27,7 @@
 #' derived_summary <- summary(fit_derived)
 #'
 #' print(derived_summary)
-#' print(derived_summary, hdi = T)
+#' print(derived_summary, hdi = F)
 #'
 #'
 #' @export
