@@ -39,7 +39,7 @@
 #' @export
 #'
 plot.summary.horseshoeocc <- function(fit_sum, which = c("beta"), median = TRUE, hdi = TRUE, equal = NULL, ...){
-  x <- x$mcmc
+  x <- fit_sum$mcmc
   if(all(length(which) == 1 & which == "alpha") |
      all(length(which) == 1 & which == "beta") |
      all(length(which) == 1 & which == "lambda") |

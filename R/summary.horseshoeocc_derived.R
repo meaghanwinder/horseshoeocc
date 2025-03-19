@@ -34,7 +34,7 @@
 #'
 summary.horseshoeocc_derived <- function(fit_derived){
   # occupancy probability summary
-  psi <- object$psi
+  psi <- fit_derived$psi
 
   sum_psi <- summary(psi)
   tmp_psi <- cbind(sum_psi$statistics[, 1:2], sum_psi$quantiles)
@@ -51,7 +51,7 @@ summary.horseshoeocc_derived <- function(fit_derived){
                        "HDI 97.5%" = hdi_97.5)
 
   # detection probability summary
-  p <- object$p
+  p <- fit_derived$p
 
   sum_p <- summary(p)
   tmp_p <- cbind(sum_p$statistics[, 1:2], sum_p$quantiles)
@@ -69,8 +69,8 @@ summary.horseshoeocc_derived <- function(fit_derived){
 
   out <- list(psi = psi_summary,
               p = p_summary,
-              model = object$model,
-              opts = object$opts)
+              model = fit_derived$model,
+              opts = fit_derived$opts)
 
   class(out) <- c('summary.horseshoeocc_derived', class(out))
 
@@ -86,7 +86,7 @@ summary.horseshoeocc_derived <- function(fit_derived){
 #' summaries for both occupancy and detection probabilities, as well as MCMC
 #' information.
 #'
-#' @param x An object of class \code{summary.horseshoeocc}, typically the
+#' @param sum_fit_derived An object of class \code{summary.horseshoeocc}, typically the
 #' result of a call to \code{summary.horseshoeocc}
 #' @param hdi logical; defaults to \code{TRUE}. If \code{FALSE}, the quantile based
 #' credibility intervals are used.
@@ -96,11 +96,11 @@ summary.horseshoeocc_derived <- function(fit_derived){
 #' @rdname summary.horseshoeocc_derived
 #'
 print.summary.horseshoeocc_derived <- function(sum_fit_derived, hdi = TRUE){
-  occ_model <- x$model$occ_model
-  det_model <- x$model$det_model
+  occ_model <- sum_fit_derived$model$occ_model
+  det_model <- sum_fit_derived$model$det_model
 
   # occ estimates
-  psi <- x$psi
+  psi <- sum_fit_derived$psi
 
   if(hdi == T){
     psi <- psi %>%
@@ -128,7 +128,7 @@ print.summary.horseshoeocc_derived <- function(sum_fit_derived, hdi = TRUE){
                        "Median")
   }
 
-  p <- x$p
+  p <- sum_fit_derived$p
 
   if(hdi == T){
     p <- p %>%
@@ -179,7 +179,7 @@ print.summary.horseshoeocc_derived <- function(sum_fit_derived, hdi = TRUE){
   print(p_tbl)
   cat("\n")
 
-  cat(paste("Model fit using", x$opts$nchain, "chains of", x$opts$niter, "iterations\n"))
-  cat(paste("with", x$opts$nburnin, "samples discarded as burn-in;\n"))
-  cat(paste("samples were thinned by", x$opts$thin))
+  cat(paste("Model fit using", sum_fit_derived$opts$nchain, "chains of", sum_fit_derived$opts$niter, "iterations\n"))
+  cat(paste("with", sum_fit_derived$opts$nburnin, "samples discarded as burn-in;\n"))
+  cat(paste("samples were thinned by", sum_fit_derived$opts$thin))
 }

@@ -32,7 +32,7 @@
 #'
 #'
 plot.horseshoeocc <- function(fit, which = c("beta"), ...){
-  x <- x$mcmc
+  x <- fit$mcmc
 
   niter <- dim(x[[1]])[1]
   nchains <- length(x)

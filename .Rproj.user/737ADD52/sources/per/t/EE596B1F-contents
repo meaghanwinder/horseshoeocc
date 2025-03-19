@@ -29,8 +29,8 @@
 #' @export
 #'
 plot.summary.horseshoeocc_derived <- function(sum_fit_derived, which = c("psi"), median = TRUE, hdi = TRUE, equal = NULL, ...){
-  psi_sum <- x$psi
-  p_sum <- x$p
+  psi_sum <- sum_fit_derived$psi
+  p_sum <- sum_fit_derived$p
 
   if(which != "psi" & which != "p"){
     stop("The argument 'which' must take on the value of 'psi' or 'p'.")

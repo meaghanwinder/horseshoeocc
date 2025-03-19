@@ -36,8 +36,8 @@
 #' @export
 #'
 summary.horseshoeocc <- function(fit){
-  mcmc <- object$mcmc
-  model <- object$model
+  mcmc <- fit$mcmc
+  model <- fit$model
 
   # user has the ability to remove using burnin and thin in horseshoeocc()
   warmup = 0; thin = 1
@@ -95,7 +95,7 @@ summary.horseshoeocc <- function(fit){
   out <- list(mcmc_summary = out,
               model = model,
               meff = meff,
-              opts = object$opts)
+              opts = fit$opts)
 
   class(out) <- c('summary.horseshoeocc', class(out))
 
@@ -120,10 +120,10 @@ summary.horseshoeocc <- function(fit){
 #' @rdname summary.horseshoeocc
 #'
 print.summary.horseshoeocc <- function(fit_sum, hdi = TRUE){
-  occ_model <- x$model$occ_model
-  det_model <- x$model$det_model
+  occ_model <- fit_sum$model$occ_model
+  det_model <- fit_sum$model$det_model
 
-  summ <- x$mcmc_summary
+  summ <- fit_sum$mcmc_summary
 
   if(hdi == T){
     summ <- summ %>%
@@ -214,7 +214,7 @@ print.summary.horseshoeocc <- function(fit_sum, hdi = TRUE){
   print(alpha_tbl)
   cat("\n")
 
-  cat(paste("Model fit using", x$opts$nchain, "chains of", x$opts$niter, "iterations\n"))
-  cat(paste("with", x$opts$nburnin, "samples discarded as burn-in;\n"))
-  cat(paste("samples were thinned by", x$opts$thin))
+  cat(paste("Model fit using", fit_sum$opts$nchain, "chains of", fit_sum$opts$niter, "iterations\n"))
+  cat(paste("with", fit_sum$opts$nburnin, "samples discarded as burn-in;\n"))
+  cat(paste("samples were thinned by", fit_sum$opts$thin))
 }
