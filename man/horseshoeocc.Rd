@@ -4,6 +4,8 @@
 \alias{horseshoeocc}
 \title{horseshoeocc: Bayesian occupancy modeling with the regularized horseshoe prior in R}
 \description{
+\if{html}{\figure{logo.png}{options: align='right' width=120px}}
+
 This package allows for the fitting and summarizing of the
 occupancy models using the regularized horseshoe prior. We use
 the notation used by \href{https://doi.org/10.1214/17-EJS1337SI}{Piironen and Vehtari (2017)}.
